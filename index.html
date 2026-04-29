@@ -51,12 +51,25 @@
         <h1>Share</h1>
         
         <div id="upload-section" style="display:none;">
-            <div class="upload-area">
-                <p style="margin:0 0 15px 0; color:var(--text-secondary);">Select a file to share</p>
-                <input type="file" id="fileInput" class="file-input">
+            <div class="upload-area" id="drop-zone">
+                <div class="drop-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent); margin-bottom: 10px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                </div>
+                <p style="margin:0 0 5px 0; font-weight: 600; font-size: 18px;">Drag & Drop to Share</p>
+                <p style="margin:0 0 15px 0; color:var(--text-secondary); font-size: 14px;">or click to browse from your Mac/PC</p>
+                <input type="file" id="fileInput" class="file-input" onchange="handleFileSelect(this)">
                 <label for="fileInput" class="upload-btn" style="background:#e5e5ea; color:black; margin-bottom:10px;">Choose File</label>
-                <br>
-                <button id="uploadSubmit" class="upload-btn" style="display:none;" onclick="uploadFile()">Upload Now</button>
+                
+                <div id="upload-progress" style="display:none; margin-top: 15px;">
+                    <p id="upload-status" style="margin-bottom: 5px; font-weight: 600; color: var(--accent);">Uploading...</p>
+                    <div style="width: 100%; background: #e5e5ea; border-radius: 10px; height: 8px; overflow: hidden;">
+                        <div id="progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -106,9 +119,35 @@
                 alert("Please replace API_BASE with your Render URL inside index.html!");
             });
 
-        document.getElementById('fileInput').addEventListener('change', function() {
-            document.getElementById('uploadSubmit').style.display = 'inline-block';
+        const dropZone = document.getElementById('drop-zone');
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--accent)';
+            dropZone.style.background = 'rgba(0, 122, 255, 0.05)';
         });
+        
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#c7c7cc';
+            dropZone.style.background = 'transparent';
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#c7c7cc';
+            dropZone.style.background = 'transparent';
+            
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                uploadFileObj(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleFileSelect(input) {
+            if(input.files && input.files.length > 0) {
+                uploadFileObj(input.files[0]);
+            }
+        }
 
         function loadFiles() {
             fetch(`${API_BASE}/files`, {
@@ -129,15 +168,13 @@
             });
         }
 
-        function uploadFile() {
-            const input = document.getElementById('fileInput');
-            if(!input.files[0]) return;
-            
-            const btn = document.getElementById('uploadSubmit');
-            btn.innerText = "Uploading...";
+        function uploadFileObj(file) {
+            document.querySelector('label[for="fileInput"]').style.display = 'none';
+            document.getElementById('upload-progress').style.display = 'block';
+            document.getElementById('progress-bar').style.width = '50%';
             
             const formData = new FormData();
-            formData.append("file", input.files[0]);
+            formData.append("file", file);
             
             fetch(`${API_BASE}/upload`, {
                 method: "POST",
@@ -146,11 +183,19 @@
             })
             .then(res => res.json())
             .then(data => {
-                if(data.error) alert(data.error);
-                btn.innerText = "Upload Now";
-                btn.style.display = "none";
-                input.value = "";
-                loadFiles();
+                document.getElementById('progress-bar').style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('upload-progress').style.display = 'none';
+                    document.querySelector('label[for="fileInput"]').style.display = 'inline-block';
+                    document.getElementById('progress-bar').style.width = '0%';
+                    if(data.error) alert(data.error);
+                    loadFiles();
+                }, 500);
+            })
+            .catch(e => {
+                alert("Upload failed.");
+                document.getElementById('upload-progress').style.display = 'none';
+                document.querySelector('label[for="fileInput"]').style.display = 'inline-block';
             });
         }
     </script>
