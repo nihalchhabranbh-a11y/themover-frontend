@@ -122,13 +122,13 @@
 <span>TheMover</span>
 </div>
 <nav class="hidden md:flex items-center gap-8">
-<a class="text-blue-600 font-semibold transition-opacity hover:opacity-80" href="#">My Files</a>
-<a class="text-slate-500 transition-opacity hover:opacity-80" href="#">Shared</a>
-<a class="text-slate-500 transition-opacity hover:opacity-80" href="#">Recents</a>
-<a class="text-slate-500 transition-opacity hover:opacity-80" href="#">Settings</a>
+<a class="text-blue-600 font-semibold transition-opacity hover:opacity-80" href="#" onclick="alert('You are already viewing all files!'); return false;">My Files</a>
+<a class="text-slate-500 transition-opacity hover:opacity-80" href="#" onclick="alert('All files shown are shared with the group.'); return false;">Shared</a>
+<a class="text-slate-500 transition-opacity hover:opacity-80" href="#" onclick="alert('Files are automatically sorted by recent uploads.'); return false;">Recents</a>
+<a class="text-slate-500 transition-opacity hover:opacity-80" href="/admin.html">Settings</a>
 </nav>
 <div class="flex items-center gap-4">
-<button class="material-symbols-outlined text-slate-900 active:scale-95 transition-transform duration-200" data-icon="account_circle">account_circle</button>
+<button class="material-symbols-outlined text-slate-900 active:scale-95 transition-transform duration-200" data-icon="account_circle" onclick="window.location.href='/admin.html'">account_circle</button>
 </div>
 </div>
 </header>
@@ -139,15 +139,15 @@
 <p class="text-xs font-medium text-slate-500 uppercase tracking-widest mt-1">Premium Plan</p>
 </div>
 <nav class="flex flex-col gap-1">
-<a class="flex items-center gap-3 px-4 py-3 bg-blue-500/10 text-blue-600 rounded-lg transition-all duration-300" href="#">
+<a class="flex items-center gap-3 px-4 py-3 bg-blue-500/10 text-blue-600 rounded-lg transition-all duration-300" href="#" onclick="alert('You are already viewing all files!'); return false;">
 <span class="material-symbols-outlined" data-icon="folder">folder</span>
 <span class="font-medium text-sm">My Files</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="#" onclick="alert('All files shown are shared with the group.'); return false;">
 <span class="material-symbols-outlined" data-icon="share">share</span>
 <span class="font-medium text-sm">Shared</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="#" onclick="alert('Files are automatically sorted by recent uploads.'); return false;">
 <span class="material-symbols-outlined" data-icon="history">history</span>
 <span class="font-medium text-sm">Recents</span>
 </a>
@@ -195,7 +195,7 @@
 <img alt="User 2" class="w-8 h-8 rounded-full border-2 border-white" data-alt="vibrant portrait of a young woman with natural sunlight and soft focus garden background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQ0h_nE3mgRjkgD9P0lw0IicLiO2ekvEmjU4Nd5CvtA0-e_OGl6qfqQ8fy2rY6DGNLdZln9H7FDVLjtK79cXtM4nX4XeWA2eqQ-6bB3P-4GBa2VFIGrRUFhxj7RW9hBZeNMm0WCrykc0YAohVGzT1CvXkwY9xen8JA2m9HFlP5YOVKbd6G7BTW8lFPmyoX7__TOGPtaKLspskiZmvf9q7fe68jQbUoZgWI9PgkamTgNrJtoF8I1R2KvxHnLlu7gPie61n2qr6-0-s"/>
 <div class="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-bold">+5</div>
 </div>
-<button class="flex items-center gap-2 text-primary font-label-caps">
+<button class="flex items-center gap-2 text-primary font-label-caps" onclick="copyShareLink()">
 <span class="material-symbols-outlined text-sm" data-icon="share">share</span>
                         SHARE GROUP
                     </button>
@@ -205,22 +205,22 @@
 </main>
 <!-- Bottom Navigation for Mobile -->
 <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-white/20 px-6 py-3 flex justify-around items-center z-50">
-<button class="flex flex-col items-center gap-1 text-primary">
+<button class="flex flex-col items-center gap-1 text-primary" onclick="alert('You are already viewing all files!'); return false;">
 <span class="material-symbols-outlined" data-icon="folder" style="font-variation-settings: 'FILL' 1;">folder</span>
 <span class="text-[10px] font-semibold">My Files</span>
 </button>
-<button class="flex flex-col items-center gap-1 text-slate-400">
+<button class="flex flex-col items-center gap-1 text-slate-400" onclick="alert('All files shown are shared with the group.'); return false;">
 <span class="material-symbols-outlined" data-icon="share">share</span>
 <span class="text-[10px] font-semibold">Shared</span>
 </button>
-<div class="-mt-12 bg-primary w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-background">
+<div class="-mt-12 bg-primary w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-background cursor-pointer" onclick="document.getElementById('fileInput').click()">
 <span class="material-symbols-outlined text-white text-3xl" data-icon="add">add</span>
 </div>
-<button class="flex flex-col items-center gap-1 text-slate-400">
+<button class="flex flex-col items-center gap-1 text-slate-400" onclick="alert('Files are automatically sorted by recent uploads.'); return false;">
 <span class="material-symbols-outlined" data-icon="history">history</span>
 <span class="text-[10px] font-semibold">Recents</span>
 </button>
-<button class="flex flex-col items-center gap-1 text-slate-400">
+<button class="flex flex-col items-center gap-1 text-slate-400" onclick="window.location.href='/admin.html'">
 <span class="material-symbols-outlined" data-icon="settings">settings</span>
 <span class="text-[10px] font-semibold">Settings</span>
 </button>
@@ -311,6 +311,11 @@
                 loadFiles();
             }, 500);
         });
+    }
+
+    function copyShareLink() {
+        navigator.clipboard.writeText(window.location.href);
+        alert("Share link copied to clipboard!");
     }
 </script>
 </body>
