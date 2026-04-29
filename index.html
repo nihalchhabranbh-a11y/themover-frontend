@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AirDrop Web</title>
+    <style>
+        :root {
+            --bg-color: #f2f2f7;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-main: #1c1c1e;
+            --text-secondary: #8e8e93;
+            --accent: #007aff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; font-size: 28px; font-weight: 700; margin-top: 0; margin-bottom: 24px; }
+        .upload-area { border: 2px dashed #c7c7cc; border-radius: 16px; padding: 30px 20px; text-align: center; margin-bottom: 24px; transition: all 0.2s ease; }
+        .upload-area:hover { border-color: var(--accent); background: rgba(0, 122, 255, 0.05); }
+        .file-input { display: none; }
+        .upload-btn { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 20px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease; display: inline-block; }
+        .upload-btn:active { transform: scale(0.96); }
+        .file-list { list-style: none; padding: 0; margin: 0; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: white; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .file-name { font-size: 15px; font-weight: 500; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .download-btn { color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600; background: rgba(0, 122, 255, 0.1); padding: 6px 16px; border-radius: 14px; cursor: pointer; }
+        h3 { font-size: 18px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Share</h1>
+        
+        <div id="upload-section" style="display:none;">
+            <div class="upload-area">
+                <p style="margin:0 0 15px 0; color:var(--text-secondary);">Select a file to share</p>
+                <input type="file" id="fileInput" class="file-input">
+                <label for="fileInput" class="upload-btn" style="background:#e5e5ea; color:black; margin-bottom:10px;">Choose File</label>
+                <br>
+                <button id="uploadSubmit" class="upload-btn" style="display:none;" onclick="uploadFile()">Upload Now</button>
+            </div>
+        </div>
+        
+        <div id="files-section" style="display:none;">
+            <h3>Group Files</h3>
+            <ul class="file-list" id="fileList"></ul>
+        </div>
+        
+        <div id="locked-msg" style="display:none; text-align:center; padding: 40px 0; color:#8e8e93;">
+            The hub is currently locked by the owner.
+        </div>
+        
+        <div style="text-align:center; margin-top: 30px;">
+            <a href="/admin.html" style="color:#8e8e93; text-decoration:none; font-size: 12px;">Owner Panel</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "https://themover-3r8d.onrender.com/api";
+        
+        let guestAuth = "";
+        
+        // Fetch Settings First
+        fetch(`${API_BASE}/settings`)
+            .then(res => res.json())
+            .then(settings => {
+                if(settings.require_password) {
+                    const pass = prompt("This hub is locked. Enter guest password:");
+                    if(pass) {
+                        guestAuth = "Basic " + btoa("guest:" + pass);
+                    }
+                }
+                
+                if(settings.allow_uploads) {
+                    document.getElementById('upload-section').style.display = 'block';
+                }
+                if(settings.allow_downloads) {
+                    document.getElementById('files-section').style.display = 'block';
+                    loadFiles();
+                }
+                if(!settings.allow_uploads && !settings.allow_downloads) {
+                    document.getElementById('locked-msg').style.display = 'block';
+                }
+            })
+            .catch(e => {
+                console.log(e);
+                alert("Please replace API_BASE with your Render URL inside index.html!");
+            });
+
+        document.getElementById('fileInput').addEventListener('change', function() {
+            document.getElementById('uploadSubmit').style.display = 'inline-block';
+        });
+
+        function loadFiles() {
+            fetch(`${API_BASE}/files`, {
+                headers: guestAuth ? { "Authorization": guestAuth } : {}
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) return alert(data.error);
+                const list = document.getElementById('fileList');
+                list.innerHTML = "";
+                data.files.forEach(f => {
+                    list.innerHTML += `
+                    <li class="file-item">
+                        <span class="file-name" title="${f.filename}">${f.filename}</span>
+                        <a href="${f.url}" target="_blank" class="download-btn">Get</a>
+                    </li>`;
+                });
+            });
+        }
+
+        function uploadFile() {
+            const input = document.getElementById('fileInput');
+            if(!input.files[0]) return;
+            
+            const btn = document.getElementById('uploadSubmit');
+            btn.innerText = "Uploading...";
+            
+            const formData = new FormData();
+            formData.append("file", input.files[0]);
+            
+            fetch(`${API_BASE}/upload`, {
+                method: "POST",
+                headers: guestAuth ? { "Authorization": guestAuth } : {},
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) alert(data.error);
+                btn.innerText = "Upload Now";
+                btn.style.display = "none";
+                input.value = "";
+                loadFiles();
+            });
+        }
+    </script>
+</body>
+</html>

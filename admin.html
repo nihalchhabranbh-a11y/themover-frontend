@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Panel</title>
+    <style>
+        :root {
+            --bg-color: #f2f2f7;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-main: #1c1c1e;
+            --text-secondary: #8e8e93;
+            --accent: #ff3b30;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; font-size: 28px; font-weight: 700; margin-top: 0; margin-bottom: 24px; }
+        .upload-btn { background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 20px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.1s ease; }
+        .upload-btn:active { transform: scale(0.96); }
+        .file-list { list-style: none; padding: 0; margin: 0; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: white; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .file-name { font-size: 15px; font-weight: 500; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="container" id="admin-content" style="display:none;">
+        <h1 style="color:#ff3b30;">Owner Panel 👑</h1>
+        
+        <div style="background:#f2f2f7; border: 1px solid #c7c7cc; padding:15px; border-radius:12px; margin-bottom:20px;">
+            <h3 style="margin-top:0;">Public Permissions</h3>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span>Require Guest Password<br><small style="color:#8e8e93;">(User: guest, Pass: 0000)</small></span>
+                <button onclick="toggleSetting('require_password')" id="btn-require_password" class="upload-btn" style="padding:6px 12px; font-size:12px;">Toggle</button>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span>Allow File Uploads</span>
+                <button onclick="toggleSetting('allow_uploads')" id="btn-allow_uploads" class="upload-btn" style="padding:6px 12px; font-size:12px;">Toggle</button>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Allow See & Download</span>
+                <button onclick="toggleSetting('allow_downloads')" id="btn-allow_downloads" class="upload-btn" style="padding:6px 12px; font-size:12px;">Toggle</button>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-bottom: 20px;">
+            <p>Total files: <span id="fileCount">0</span></p>
+            <button onclick="deleteAll()" class="upload-btn">Delete All Files 🗑️</button>
+            <br><br>
+            <a href="/index.html" style="color:#007aff; text-decoration:none; font-weight:bold; display:inline-block; margin-top:15px;">← Back to Public Hub</a>
+        </div>
+        
+        <h3>Manage Files</h3>
+        <ul class="file-list" id="fileList"></ul>
+    </div>
+
+    <script>
+        const API_BASE = "https://themover-3r8d.onrender.com/api";
+        
+        const adminAuth = "Basic " + btoa("admin:1234");
+        
+        function loadAdminData() {
+            fetch(`${API_BASE}/admin/files`, {
+                headers: { "Authorization": adminAuth }
+            })
+            .then(res => {
+                if(res.status === 401) {
+                    alert("Unauthorized!");
+                    return null;
+                }
+                return res.json();
+            })
+            .then(data => {
+                if(!data) return;
+                document.getElementById('admin-content').style.display = 'block';
+                
+                // Update settings buttons
+                const s = data.settings;
+                document.getElementById('btn-require_password').style.background = s.require_password ? '#34c759' : '#c7c7cc';
+                document.getElementById('btn-require_password').innerText = s.require_password ? 'ON' : 'OFF';
+                
+                document.getElementById('btn-allow_uploads').style.background = s.allow_uploads ? '#34c759' : '#c7c7cc';
+                document.getElementById('btn-allow_uploads').innerText = s.allow_uploads ? 'ON' : 'OFF';
+                
+                document.getElementById('btn-allow_downloads').style.background = s.allow_downloads ? '#34c759' : '#c7c7cc';
+                document.getElementById('btn-allow_downloads').innerText = s.allow_downloads ? 'ON' : 'OFF';
+                
+                // Update files
+                document.getElementById('fileCount').innerText = data.files.length;
+                const list = document.getElementById('fileList');
+                list.innerHTML = "";
+                data.files.forEach(f => {
+                    list.innerHTML += `
+                    <li class="file-item">
+                        <span class="file-name" title="${f.filename}">${f.filename} (${(f.size_mb || 0).toFixed(2)} MB)</span>
+                        <button onclick="deleteFile('${f.public_id}')" class="upload-btn" style="background:#ff3b30; padding:6px 12px; font-size:14px;">Delete</button>
+                    </li>`;
+                });
+            })
+            .catch(e => {
+                console.log(e);
+                alert("Please replace API_BASE with your Render URL inside admin.html!");
+            });
+        }
+        
+        function toggleSetting(setting) {
+            fetch(`${API_BASE}/admin/toggle/${setting}`, {
+                method: "POST",
+                headers: { "Authorization": adminAuth }
+            })
+            .then(() => loadAdminData());
+        }
+        
+        function deleteFile(public_id) {
+            fetch(`${API_BASE}/admin/delete`, {
+                method: "POST",
+                headers: { "Authorization": adminAuth, "Content-Type": "application/json" },
+                body: JSON.stringify({ public_id })
+            })
+            .then(() => loadAdminData());
+        }
+        
+        function deleteAll() {
+            if(!confirm("Are you sure?")) return;
+            fetch(`${API_BASE}/admin/delete_all`, {
+                method: "POST",
+                headers: { "Authorization": adminAuth }
+            })
+            .then(() => loadAdminData());
+        }
+        
+        // Auto-load on open
+        loadAdminData();
+    </script>
+</body>
+</html>
