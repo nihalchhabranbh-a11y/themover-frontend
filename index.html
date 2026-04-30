@@ -250,6 +250,111 @@
     const API_BASE = "https://themover-3r8d.onrender.com/api";
     let guestAuth = "";
 
+    // --- WebRTC Smart Transfer Logic ---
+    const socket = io("https://themover-3r8d.onrender.com");
+    let hostedFiles = {};
+    let rtcPeerConnections = {};
+
+    function requestSmartDownload(public_id, cloud_url, filename) {
+        socket.emit('request_download', { public_id });
+        window.downloadTimeout = setTimeout(() => {
+            window.location.href = cloud_url;
+        }, 1500);
+    }
+
+    socket.on('webrtc_initiate', async (data) => {
+        const { downloader_sid, public_id } = data;
+        const file = hostedFiles[public_id];
+        if (!file) return;
+
+        const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        rtcPeerConnections[downloader_sid] = peer;
+
+        peer.onicecandidate = e => {
+            if (e.candidate) socket.emit('webrtc_ice', { candidate: e.candidate, target_sid: downloader_sid });
+        };
+
+        const dc = peer.createDataChannel('fileTransfer');
+        dc.binaryType = 'arraybuffer';
+        
+        dc.onopen = () => {
+            const chunkSize = 16384; 
+            let offset = 0;
+            dc.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size }));
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                dc.send(e.target.result);
+                offset += e.target.result.byteLength;
+                if (offset < file.size) readSlice(offset);
+                else dc.send(JSON.stringify({ type: 'eof' }));
+            };
+            const readSlice = o => {
+                const slice = file.slice(offset, o + chunkSize);
+                reader.readAsArrayBuffer(slice);
+            };
+            readSlice(0);
+        };
+
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit('webrtc_offer', { offer, downloader_sid, public_id });
+    });
+
+    let incomingChunks = [];
+    let incomingMeta = null;
+
+    socket.on('webrtc_offer', async (data) => {
+        clearTimeout(window.downloadTimeout);
+        const { offer, uploader_sid, public_id } = data;
+        const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        rtcPeerConnections[uploader_sid] = peer;
+
+        peer.onicecandidate = e => {
+            if (e.candidate) socket.emit('webrtc_ice', { candidate: e.candidate, target_sid: uploader_sid });
+        };
+
+        peer.ondatachannel = e => {
+            const dc = e.channel;
+            dc.binaryType = 'arraybuffer';
+            incomingChunks = [];
+            
+            dc.onmessage = msg => {
+                if (typeof msg.data === 'string') {
+                    const info = JSON.parse(msg.data);
+                    if (info.type === 'meta') incomingMeta = info;
+                    else if (info.type === 'eof') {
+                        const blob = new Blob(incomingChunks);
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = incomingMeta.name;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        alert("⚡ File downloaded instantly over Local Wi-Fi (No Internet Used)!");
+                    }
+                } else incomingChunks.push(msg.data);
+            };
+        };
+
+        await peer.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        socket.emit('webrtc_answer', { answer, uploader_sid });
+    });
+
+    socket.on('webrtc_answer', async (data) => {
+        const peer = rtcPeerConnections[data.downloader_sid];
+        if (peer) await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
+    });
+
+    socket.on('webrtc_ice', async (data) => {
+        for (let sid in rtcPeerConnections) {
+            rtcPeerConnections[sid].addIceCandidate(new RTCIceCandidate(data.candidate)).catch(()=>{});
+        }
+    });
+    // --- End WebRTC Logic ---
+
     fetch(`${API_BASE}/settings`)
         .then(res => res.json())
         .then(settings => {
@@ -302,7 +407,7 @@
                             <p class="text-xs text-slate-500">${sizeStr}</p>
                         </div>
                     </div>
-                    <a href="${f.url}" target="_blank" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-full font-bold tracking-normal active:scale-95 transition-all duration-200">Get</a>
+                    <button onclick="requestSmartDownload('${f.public_id}', '${f.url}', '${f.filename}')" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-full font-bold tracking-normal active:scale-95 transition-all duration-200">Get</button>
                 </div>`;
             });
         });
