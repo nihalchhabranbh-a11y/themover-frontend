@@ -282,206 +282,132 @@
         updateGroupUI();
     });
 
-    // --- WebRTC Smart Transfer Logic ---
+    // --- Smart Transfer Logic (Socket.io Relay) ---
     const socket = io("https://themover-3r8d.onrender.com");
     let hostedFiles = {};
-    let rtcPeerConnections = {};
+    const MAX_RELAY_SIZE_MB = 50; // Relay files up to 50MB, larger go direct to cloud
 
-    // On page load, re-register any files uploaded in this browser session
-    // This keeps LAN transfer working even after the page is scrolled/refreshed within the same tab
+    // On page load, re-register session files
     socket.on('connect', () => {
-        const sessionFiles = JSON.parse(sessionStorage.getItem('themover_hosted') || '{}');
-        for (const public_id in sessionFiles) {
-            // Only re-register if we still have the file object in memory
-            if (hostedFiles[public_id]) {
-                socket.emit('register_uploader', { public_id });
-            }
+        for (const public_id in hostedFiles) {
+            socket.emit('register_uploader', { public_id });
         }
     });
 
-    function showTransferStatus(msg, isLan) {
+    function showTransferStatus(msg) {
         let el = document.getElementById('transfer-status');
         if (!el) {
             el = document.createElement('div');
             el.id = 'transfer-status';
-            el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:opacity 0.5s';
+            el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:opacity 0.5s;pointer-events:none';
             document.body.appendChild(el);
         }
         el.textContent = msg;
         el.style.opacity = '1';
         clearTimeout(el._timer);
-        el._timer = setTimeout(() => { el.style.opacity = '0'; }, 4000);
+        el._timer = setTimeout(() => { el.style.opacity = '0'; }, 5000);
     }
 
     function requestSmartDownload(public_id, cloud_url, filename) {
-        showTransferStatus('⚡ Checking for LAN source...', true);
+        const file = hostedFiles[public_id];
+        // If the file is in memory AND small enough, relay it via socket
+        if (file && file.size <= MAX_RELAY_SIZE_MB * 1024 * 1024) {
+            // File is in this browser's memory — but we need to send it to downloader
+            // Just register as uploader, downloader will request it
+            socket.emit('register_uploader', { public_id });
+        }
+        showTransferStatus('⚡ Checking for fast source...');
         socket.emit('request_download', { public_id });
-        // Increased timeout to 3s to give LAN detection more time
         window.downloadTimeout = setTimeout(() => {
-            showTransferStatus('☁️ Downloading from Cloud...', false);
+            showTransferStatus('☁️ Downloading from Cloud...');
             window.location.href = cloud_url;
         }, 3000);
     }
 
-    socket.on('webrtc_initiate', async (data) => {
+    // --- UPLOADER SIDE: Server asks Mac to send file ---
+    socket.on('relay_send_file', (data) => {
         const { downloader_sid, public_id } = data;
         const file = hostedFiles[public_id];
-        // If this Mac no longer has the file in memory, tell server to use cloud
         if (!file) {
             socket.emit('uploader_unavailable', { downloader_sid, public_id });
             return;
         }
-
-        const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-        rtcPeerConnections[downloader_sid] = peer;
-
-        peer.onicecandidate = e => {
-            if (e.candidate) socket.emit('webrtc_ice', { candidate: e.candidate, target_sid: downloader_sid });
-        };
-
-        const dc = peer.createDataChannel('fileTransfer');
-        dc.binaryType = 'arraybuffer';
+        showTransferStatus('⚡ Sending file via relay...');
+        const chunkSize = 64 * 1024; // 64KB chunks
+        let offset = 0;
+        const reader = new FileReader();
         
-        dc.onopen = () => {
-            const chunkSize = 16384; 
-            let offset = 0;
-            dc.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size }));
-
-            const reader = new FileReader();
-            reader.onload = e => {
-                dc.send(e.target.result);
-                offset += e.target.result.byteLength;
-                
-                const sendNext = () => {
-                    if (offset < file.size) readSlice(offset);
-                    else dc.send(JSON.stringify({ type: 'eof' }));
-                };
-
-                // Prevent 'send queue is full' error
-                if (dc.bufferedAmount > dc.bufferedAmountLowThreshold) {
-                    dc.onbufferedamountlow = () => {
-                        dc.onbufferedamountlow = null;
-                        sendNext();
-                    };
-                } else {
-                    sendNext();
-                }
-            };
-            const readSlice = o => {
-                const slice = file.slice(offset, offset + chunkSize);
-                reader.readAsArrayBuffer(slice);
-            };
-            dc.bufferedAmountLowThreshold = 1024 * 512;
-            readSlice(0);
+        // Send metadata first
+        socket.emit('relay_chunk', { downloader_sid, public_id, meta: { name: file.name, size: file.size } });
+        
+        const sendNextChunk = () => {
+            if (offset >= file.size) {
+                socket.emit('relay_chunk', { downloader_sid, public_id, eof: true });
+                showTransferStatus('✅ File sent!');
+                return;
+            }
+            const slice = file.slice(offset, offset + chunkSize);
+            reader.readAsArrayBuffer(slice);
         };
-
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
-        socket.emit('webrtc_offer', { offer, downloader_sid, public_id });
+        
+        reader.onload = e => {
+            const buffer = e.target.result;
+            offset += buffer.byteLength;
+            // Convert to base64 for socket.io transport
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            const b64 = btoa(binary);
+            socket.emit('relay_chunk', { downloader_sid, public_id, chunk: b64 }, () => {
+                // Wait for ack before sending next chunk (flow control)
+                sendNextChunk();
+            });
+        };
+        sendNextChunk();
     });
 
-    let incomingChunks = [];
-    let incomingMeta = null;
-    // Queue ICE candidates that arrive before setRemoteDescription is done
-    let pendingIceCandidates = {};
+    // --- DOWNLOADER SIDE: Receive relayed file ---
+    let relayChunks = [];
+    let relayMeta = null;
 
-    const ICE_SERVERS = [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun.cloudflare.com:3478' }
-    ];
-
-    socket.on('webrtc_offer', async (data) => {
+    socket.on('relay_chunk', (data) => {
         clearTimeout(window.downloadTimeout);
-        showTransferStatus('⚡ Connecting over LAN...', true);
-        const { offer, uploader_sid, public_id } = data;
-        const peer = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-        rtcPeerConnections[uploader_sid] = peer;
-        pendingIceCandidates[uploader_sid] = [];
-
-        peer.onicecandidate = e => {
-            if (e.candidate) socket.emit('webrtc_ice', { candidate: e.candidate, target_sid: uploader_sid });
-        };
-
-        peer.ondatachannel = e => {
-            const dc = e.channel;
-            dc.binaryType = 'arraybuffer';
-            incomingChunks = [];
-            showTransferStatus('⚡ LAN Transfer! Blazing fast!', true);
-            
-            dc.onmessage = msg => {
-                if (typeof msg.data === 'string') {
-                    const info = JSON.parse(msg.data);
-                    if (info.type === 'meta') incomingMeta = info;
-                    else if (info.type === 'eof') {
-                        const blob = new Blob(incomingChunks);
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = incomingMeta.name;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                        showTransferStatus('✅ Done! Transferred over Local Wi-Fi!', true);
-                    }
-                } else incomingChunks.push(msg.data);
-            };
-        };
-
-        // Set remote description FIRST, then flush any queued ICE candidates
-        await peer.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        socket.emit('webrtc_answer', { answer, uploader_sid });
-
-        // Flush any ICE candidates that arrived before setRemoteDescription
-        for (const c of (pendingIceCandidates[uploader_sid] || [])) {
-            await peer.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+        if (data.meta) {
+            relayChunks = [];
+            relayMeta = data.meta;
+            showTransferStatus('⚡ Receiving via Relay...');
+            return;
         }
-        pendingIceCandidates[uploader_sid] = null;
+        if (data.eof) {
+            const blob = new Blob(relayChunks);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = relayMeta.name;
+            a.click();
+            URL.revokeObjectURL(url);
+            showTransferStatus('✅ Download complete!');
+            return;
+        }
+        if (data.chunk) {
+            // Convert base64 back to binary
+            const binary = atob(data.chunk);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            relayChunks.push(bytes.buffer);
+        }
     });
 
     socket.on('use_cloud', (data) => {
         clearTimeout(window.downloadTimeout);
-        showTransferStatus('☁️ Downloading from Cloud...', false);
+        showTransferStatus('☁️ Downloading from Cloud...');
         const cards = document.querySelectorAll('[data-public-id="' + data.public_id + '"]');
         cards.forEach(card => {
             const url = card.getAttribute('data-cloud-url');
             if (url) window.location.href = url;
         });
     });
-
-    socket.on('webrtc_answer', async (data) => {
-        const peer = rtcPeerConnections[data.downloader_sid];
-        if (!peer) return;
-        await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
-        // Flush queued ICE candidates
-        for (const c of (pendingIceCandidates[data.downloader_sid] || [])) {
-            await peer.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
-        }
-        pendingIceCandidates[data.downloader_sid] = null;
-    });
-
-    socket.on('webrtc_ice', async (data) => {
-        // Find the correct peer connection for the incoming ICE candidate
-        // Try all connections since we don't know which SID it belongs to
-        let handled = false;
-        for (let sid in rtcPeerConnections) {
-            const peer = rtcPeerConnections[sid];
-            if (peer && peer.remoteDescription) {
-                await peer.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
-                handled = true;
-            } else if (peer && !peer.remoteDescription) {
-                // Queue it - remote description not set yet
-                if (!pendingIceCandidates[sid]) pendingIceCandidates[sid] = [];
-                if (pendingIceCandidates[sid] !== null) {
-                    pendingIceCandidates[sid].push(data.candidate);
-                    handled = true;
-                }
-            }
-        }
-    });
-    // --- End WebRTC Logic ---
+    // --- End Smart Transfer Logic ---
 
     fetch(`${API_BASE}/settings`)
         .then(res => res.json())
