@@ -287,17 +287,50 @@
     let hostedFiles = {};
     let rtcPeerConnections = {};
 
+    // On page load, re-register any files uploaded in this browser session
+    // This keeps LAN transfer working even after the page is scrolled/refreshed within the same tab
+    socket.on('connect', () => {
+        const sessionFiles = JSON.parse(sessionStorage.getItem('themover_hosted') || '{}');
+        for (const public_id in sessionFiles) {
+            // Only re-register if we still have the file object in memory
+            if (hostedFiles[public_id]) {
+                socket.emit('register_uploader', { public_id });
+            }
+        }
+    });
+
+    function showTransferStatus(msg, isLan) {
+        let el = document.getElementById('transfer-status');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'transfer-status';
+            el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:opacity 0.5s';
+            document.body.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.opacity = '1';
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => { el.style.opacity = '0'; }, 4000);
+    }
+
     function requestSmartDownload(public_id, cloud_url, filename) {
+        showTransferStatus('⚡ Checking for LAN source...', true);
         socket.emit('request_download', { public_id });
+        // Increased timeout to 3s to give LAN detection more time
         window.downloadTimeout = setTimeout(() => {
+            showTransferStatus('☁️ Downloading from Cloud...', false);
             window.location.href = cloud_url;
-        }, 1500);
+        }, 3000);
     }
 
     socket.on('webrtc_initiate', async (data) => {
         const { downloader_sid, public_id } = data;
         const file = hostedFiles[public_id];
-        if (!file) return;
+        // If this Mac no longer has the file in memory, tell server to use cloud
+        if (!file) {
+            socket.emit('uploader_unavailable', { downloader_sid, public_id });
+            return;
+        }
 
         const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         rtcPeerConnections[downloader_sid] = peer;
@@ -324,7 +357,7 @@
                     else dc.send(JSON.stringify({ type: 'eof' }));
                 };
 
-                // Prevent 'send queue is full' error by waiting if buffer is too large
+                // Prevent 'send queue is full' error
                 if (dc.bufferedAmount > dc.bufferedAmountLowThreshold) {
                     dc.onbufferedamountlow = () => {
                         dc.onbufferedamountlow = null;
@@ -338,8 +371,7 @@
                 const slice = file.slice(offset, offset + chunkSize);
                 reader.readAsArrayBuffer(slice);
             };
-            
-            dc.bufferedAmountLowThreshold = 1024 * 512; // Wait until buffer drains to 512KB
+            dc.bufferedAmountLowThreshold = 1024 * 512;
             readSlice(0);
         };
 
@@ -353,6 +385,7 @@
 
     socket.on('webrtc_offer', async (data) => {
         clearTimeout(window.downloadTimeout);
+        showTransferStatus('⚡ LAN Transfer! Blazing fast!', true);
         const { offer, uploader_sid, public_id } = data;
         const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         rtcPeerConnections[uploader_sid] = peer;
@@ -378,7 +411,7 @@
                         a.download = incomingMeta.name;
                         a.click();
                         URL.revokeObjectURL(url);
-                        alert("⚡ File downloaded instantly over Local Wi-Fi (No Internet Used)!");
+                        showTransferStatus('✅ Done! Transferred over Local Wi-Fi!', true);
                     }
                 } else incomingChunks.push(msg.data);
             };
@@ -388,6 +421,17 @@
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         socket.emit('webrtc_answer', { answer, uploader_sid });
+    });
+
+    socket.on('use_cloud', (data) => {
+        clearTimeout(window.downloadTimeout);
+        showTransferStatus('☁️ Downloading from Cloud...', false);
+        // Find the cloud URL for this file and redirect
+        const cards = document.querySelectorAll('[data-public-id="' + data.public_id + '"]');
+        cards.forEach(card => {
+            const url = card.getAttribute('data-cloud-url');
+            if (url) window.location.href = url;
+        });
     });
 
     socket.on('webrtc_answer', async (data) => {
@@ -444,7 +488,7 @@
             data.files.forEach(f => {
                 let sizeStr = f.size_mb ? f.size_mb.toFixed(2) + " MB" : "Unknown Size";
                 list.innerHTML += `
-                <div class="flex items-center justify-between p-4 bg-white/50 hover:bg-white/80 transition-colors rounded-lg border border-white/20">
+                <div class="flex items-center justify-between p-4 bg-white/50 hover:bg-white/80 transition-colors rounded-lg border border-white/20" data-public-id="${f.public_id}" data-cloud-url="${f.url}">
                     <div class="flex items-center gap-4">
                         <button onclick="requestSmartDownload('${f.public_id}', '${f.url}', '${f.filename}')" class="p-2 bg-primary-container text-white rounded-xl hover:opacity-90 transition-opacity">
                             <span class="material-symbols-outlined">download</span>
