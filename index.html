@@ -270,8 +270,17 @@
         }
     }
     
-    // Initialize UI
-    window.addEventListener('DOMContentLoaded', updateGroupUI);
+    // Initialize UI and check for Share Links
+    window.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('group')) {
+            currentGroup = params.get('group');
+            localStorage.setItem('themover_group', currentGroup);
+            // Clean up the URL
+            window.history.replaceState({}, document.title, "/index.html");
+        }
+        updateGroupUI();
+    });
 
     // --- WebRTC Smart Transfer Logic ---
     const socket = io("https://themover-3r8d.onrender.com");
