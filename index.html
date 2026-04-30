@@ -7,6 +7,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -293,9 +294,9 @@
                 list.innerHTML += `
                 <div class="flex items-center justify-between p-4 bg-white/50 hover:bg-white/80 transition-colors rounded-lg border border-white/20">
                     <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-lg">
-                            <span class="material-symbols-outlined text-blue-500">description</span>
-                        </div>
+                        <button onclick="requestSmartDownload('${f.public_id}', '${f.url}', '${f.filename}')" class="p-2 bg-primary-container text-white rounded-xl hover:opacity-90 transition-opacity">
+                            <span class="material-symbols-outlined">download</span>
+                        </button>
                         <div>
                             <p class="font-body-md font-semibold text-slate-800" style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.filename}</p>
                             <p class="text-xs text-slate-500">${sizeStr}</p>
@@ -320,6 +321,8 @@
         .then(res => res.json())
         .then(data => {
             document.getElementById('progress-bar').style.width = '100%';
+            if(data.file) hostedFiles[data.file.public_id] = file;
+            socket.emit('register_uploader', { public_id: data.file.public_id });
             setTimeout(() => {
                 document.getElementById('upload-progress').style.display = 'none';
                 document.getElementById('progress-bar').style.width = '0%';
