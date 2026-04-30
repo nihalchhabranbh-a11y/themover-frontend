@@ -318,13 +318,28 @@
             reader.onload = e => {
                 dc.send(e.target.result);
                 offset += e.target.result.byteLength;
-                if (offset < file.size) readSlice(offset);
-                else dc.send(JSON.stringify({ type: 'eof' }));
+                
+                const sendNext = () => {
+                    if (offset < file.size) readSlice(offset);
+                    else dc.send(JSON.stringify({ type: 'eof' }));
+                };
+
+                // Prevent 'send queue is full' error by waiting if buffer is too large
+                if (dc.bufferedAmount > dc.bufferedAmountLowThreshold) {
+                    dc.onbufferedamountlow = () => {
+                        dc.onbufferedamountlow = null;
+                        sendNext();
+                    };
+                } else {
+                    sendNext();
+                }
             };
             const readSlice = o => {
-                const slice = file.slice(offset, o + chunkSize);
+                const slice = file.slice(offset, offset + chunkSize);
                 reader.readAsArrayBuffer(slice);
             };
+            
+            dc.bufferedAmountLowThreshold = 1024 * 512; // Wait until buffer drains to 512KB
             readSlice(0);
         };
 
