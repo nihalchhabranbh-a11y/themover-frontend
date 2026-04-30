@@ -382,13 +382,23 @@
 
     let incomingChunks = [];
     let incomingMeta = null;
+    // Queue ICE candidates that arrive before setRemoteDescription is done
+    let pendingIceCandidates = {};
+
+    const ICE_SERVERS = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+    ];
 
     socket.on('webrtc_offer', async (data) => {
         clearTimeout(window.downloadTimeout);
-        showTransferStatus('⚡ LAN Transfer! Blazing fast!', true);
+        showTransferStatus('⚡ Connecting over LAN...', true);
         const { offer, uploader_sid, public_id } = data;
-        const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        const peer = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         rtcPeerConnections[uploader_sid] = peer;
+        pendingIceCandidates[uploader_sid] = [];
 
         peer.onicecandidate = e => {
             if (e.candidate) socket.emit('webrtc_ice', { candidate: e.candidate, target_sid: uploader_sid });
@@ -398,6 +408,7 @@
             const dc = e.channel;
             dc.binaryType = 'arraybuffer';
             incomingChunks = [];
+            showTransferStatus('⚡ LAN Transfer! Blazing fast!', true);
             
             dc.onmessage = msg => {
                 if (typeof msg.data === 'string') {
@@ -417,16 +428,22 @@
             };
         };
 
+        // Set remote description FIRST, then flush any queued ICE candidates
         await peer.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         socket.emit('webrtc_answer', { answer, uploader_sid });
+
+        // Flush any ICE candidates that arrived before setRemoteDescription
+        for (const c of (pendingIceCandidates[uploader_sid] || [])) {
+            await peer.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+        }
+        pendingIceCandidates[uploader_sid] = null;
     });
 
     socket.on('use_cloud', (data) => {
         clearTimeout(window.downloadTimeout);
         showTransferStatus('☁️ Downloading from Cloud...', false);
-        // Find the cloud URL for this file and redirect
         const cards = document.querySelectorAll('[data-public-id="' + data.public_id + '"]');
         cards.forEach(card => {
             const url = card.getAttribute('data-cloud-url');
@@ -436,12 +453,32 @@
 
     socket.on('webrtc_answer', async (data) => {
         const peer = rtcPeerConnections[data.downloader_sid];
-        if (peer) await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
+        if (!peer) return;
+        await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
+        // Flush queued ICE candidates
+        for (const c of (pendingIceCandidates[data.downloader_sid] || [])) {
+            await peer.addIceCandidate(new RTCIceCandidate(c)).catch(() => {});
+        }
+        pendingIceCandidates[data.downloader_sid] = null;
     });
 
     socket.on('webrtc_ice', async (data) => {
+        // Find the correct peer connection for the incoming ICE candidate
+        // Try all connections since we don't know which SID it belongs to
+        let handled = false;
         for (let sid in rtcPeerConnections) {
-            rtcPeerConnections[sid].addIceCandidate(new RTCIceCandidate(data.candidate)).catch(()=>{});
+            const peer = rtcPeerConnections[sid];
+            if (peer && peer.remoteDescription) {
+                await peer.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
+                handled = true;
+            } else if (peer && !peer.remoteDescription) {
+                // Queue it - remote description not set yet
+                if (!pendingIceCandidates[sid]) pendingIceCandidates[sid] = [];
+                if (pendingIceCandidates[sid] !== null) {
+                    pendingIceCandidates[sid].push(data.candidate);
+                    handled = true;
+                }
+            }
         }
     });
     // --- End WebRTC Logic ---
