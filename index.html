@@ -200,7 +200,7 @@
 <!-- Content Section -->
 <section class="mt-margin-page">
 <div class="flex items-center justify-between mb-6">
-<h3 class="font-headline-lg text-lg text-on-surface">Group Files</h3>
+<h3 id="groupHeader" class="font-headline-lg text-lg text-on-surface">Public Hub <button onclick="joinGroup()" class="ml-2 text-sm text-primary underline">Join Group</button></h3>
 <span id="fileCount" class="font-label-caps text-primary bg-primary/10 px-3 py-1 rounded-full">0 FILES</span>
 </div>
 <!-- File List -->
@@ -249,6 +249,29 @@
 <script>
     const API_BASE = "https://themover-3r8d.onrender.com/api";
     let guestAuth = "";
+    let currentGroup = localStorage.getItem('themover_group') || 'public';
+
+    function joinGroup() {
+        const code = prompt("Enter Group Code to join (or leave blank for Public Hub):");
+        if (code !== null) {
+            currentGroup = code.trim() || 'public';
+            localStorage.setItem('themover_group', currentGroup);
+            updateGroupUI();
+            loadFiles();
+        }
+    }
+
+    function updateGroupUI() {
+        const header = document.getElementById('groupHeader');
+        if (currentGroup === 'public') {
+            header.innerHTML = `Public Hub <button onclick="joinGroup()" class="ml-2 text-sm text-primary underline">Join Group</button>`;
+        } else {
+            header.innerHTML = `Group: ${currentGroup} <button onclick="joinGroup()" class="ml-2 text-sm text-red-500 underline">Leave</button>`;
+        }
+    }
+    
+    // Initialize UI
+    window.addEventListener('DOMContentLoaded', updateGroupUI);
 
     // --- WebRTC Smart Transfer Logic ---
     const socket = io("https://themover-3r8d.onrender.com");
@@ -385,7 +408,7 @@
     }
 
     function loadFiles() {
-        fetch(`${API_BASE}/files`, {
+        fetch(`${API_BASE}/files?group=${currentGroup}`, {
             headers: guestAuth ? { "Authorization": guestAuth } : {}
         })
         .then(res => res.json())
@@ -418,6 +441,7 @@
         document.getElementById('progress-bar').style.width = '50%';
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("group", currentGroup);
         fetch(`${API_BASE}/upload`, {
             method: "POST",
             headers: guestAuth ? { "Authorization": guestAuth } : {},
