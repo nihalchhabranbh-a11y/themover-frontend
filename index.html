@@ -251,9 +251,23 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 <button class="ctrl-btn" id="btn-mic" onclick="toggleMic()">mic</button>
                 <button class="ctrl-btn" id="btn-cam" onclick="toggleCam()">videocam</button>
                 <button class="ctrl-btn" id="btn-screen" onclick="shareScreen()">present_to_all</button>
+                
+                <!-- NEW: Video Filters & AR -->
+                <select id="video-filter" class="ws-input" style="width:120px; padding:6px; background:rgba(255,255,255,0.1); border:none; color:white; border-radius:6px; font-size:12px;" onchange="setVideoFilter(this.value)">
+                    <option value="none">✨ No Filter</option>
+                    <option value="beauty">🌟 Beauty (Smooth)</option>
+                    <option value="bright">☀️ Bright</option>
+                    <option value="bw">🎞️ B&W</option>
+                    <option value="vintage">📻 Vintage</option>
+                </select>
+                <button class="ctrl-btn" id="btn-ar" onclick="toggleAR()" style="font-size:16px;" title="Enable AR Emoji Gestures">✌️</button>
+
                 <button class="ctrl-btn" id="btn-host" onclick="installHostAgent()" style="background:#4ade80; color:#000;" title="Auto-Host AnyDesk">settings_remote</button>
                 <button class="ctrl-btn danger" onclick="leaveCall()">call_end</button>
             </div>
+            <!-- Hidden elements for Canvas Video Pipeline -->
+            <video id="raw-video" autoplay playsinline muted style="display:none;"></video>
+            <canvas id="filter-canvas" style="display:none;"></canvas>
         </div>
     </div>
     
@@ -572,25 +586,101 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     </div>`).join('');
         }
 
-        // ── Video Call ──────────────────────────────────────────────────────────────
-        let localStream = null, peers = {}, inCall = false, micOn = true, camOn = true;
+        // ── Video Call & Canvas Pipeline ────────────────────────────────────────────
+        let localStream = null, rawStream = null, peers = {}, inCall = false, micOn = true, camOn = true;
+        let videoFilter = 'none', arEnabled = false;
         const ICE = {
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' },
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }]
         };
 
+        function setVideoFilter(f) { videoFilter = f; }
+        function toggleAR() { 
+            arEnabled = !arEnabled; 
+            document.getElementById('btn-ar').style.background = arEnabled ? 'var(--primary)' : 'rgba(255,255,255,.1)';
+            if (arEnabled && !window.handLandmarker && window.initAR) window.initAR();
+        }
+
         async function joinCall() {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Get raw camera and mic
+                rawStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: true });
+                
+                // Route raw video to hidden video element
+                const rawVid = document.getElementById('raw-video');
+                rawVid.srcObject = new MediaStream([rawStream.getVideoTracks()[0]]);
+                rawVid.play();
+                
+                // Setup Canvas stream
+                const canvas = document.getElementById('filter-canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 640; canvas.height = 480;
+                
+                // Start processing loop
+                function drawFrame() {
+                    if (!inCall) return;
+                    requestAnimationFrame(drawFrame);
+                    
+                    if (rawVid.readyState === rawVid.HAVE_ENOUGH_DATA) {
+                        // Apply selected visual filter
+                        if (videoFilter === 'beauty') ctx.filter = 'contrast(1.1) brightness(1.1) saturate(1.2) blur(1px)';
+                        else if (videoFilter === 'bright') ctx.filter = 'brightness(1.4)';
+                        else if (videoFilter === 'bw') ctx.filter = 'grayscale(100%)';
+                        else if (videoFilter === 'vintage') ctx.filter = 'sepia(80%) contrast(1.2)';
+                        else ctx.filter = 'none';
+                        
+                        // Draw raw video onto canvas
+                        ctx.drawImage(rawVid, 0, 0, canvas.width, canvas.height);
+                        ctx.filter = 'none'; // reset for drawing emojis
+                        
+                        // Hand tracking (if AR enabled and model loaded)
+                        if (arEnabled && window.handLandmarker) {
+                            try {
+                                const results = window.handLandmarker.detectForVideo(rawVid, performance.now());
+                                if (results.landmarks && results.landmarks.length > 0) {
+                                    const lm = results.landmarks[0]; // first hand
+                                    const indexTip = lm[8]; const indexPip = lm[6];
+                                    const middleTip = lm[12]; const middlePip = lm[10];
+                                    const thumbTip = lm[4]; const thumbPip = lm[2];
+                                    
+                                    let emoji = '';
+                                    // Basic logic: Thumbs up
+                                    if (thumbTip.y < thumbPip.y && indexTip.y > indexPip.y) emoji = '👍';
+                                    // Peace sign
+                                    else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y) emoji = '✌️';
+                                    // Raised hand
+                                    else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y && thumbTip.y < thumbPip.y) emoji = '✋';
+                                    
+                                    if (emoji) {
+                                        ctx.font = '80px sans-serif';
+                                        ctx.textAlign = 'center';
+                                        ctx.textBaseline = 'middle';
+                                        ctx.fillText(emoji, indexTip.x * canvas.width, indexTip.y * canvas.height - 60);
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+                
+                // Combine canvas video + raw mic into localStream
+                const canvasStream = canvas.captureStream(30);
+                localStream = new MediaStream([canvasStream.getVideoTracks()[0], rawStream.getAudioTracks()[0]]);
+                
+                // Show local tile with the processed canvas stream
                 addVideoTile('local', userName, localStream, true);
+                
                 document.getElementById('meet-lobby').style.display = 'none';
                 document.getElementById('meet-call').style.display = 'flex';
                 inCall = true;
+                drawFrame(); // start loop
+                
                 socket.emit('call_join', { code: wsCode, name: userName });
                 updateCallBtns();
-            } catch (e) { alert('Camera/mic access denied. Please allow permissions.'); }
+            } catch (e) { console.error(e); alert('Camera/mic access denied. Please allow permissions.'); }
         }
         function leaveCall() {
+            rawStream?.getTracks().forEach(t => t.stop()); rawStream = null;
             localStream?.getTracks().forEach(t => t.stop()); localStream = null;
             Object.values(peers).forEach(pc => pc.close()); peers = {}; inCall = false;
             document.getElementById('video-grid').innerHTML = '';
@@ -1097,5 +1187,29 @@ initSocket = function() {
 };
 
 </script>
+
+<!-- AR Gesture Recognition (MediaPipe) -->
+<script type="module">
+import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+window.initAR = async function() {
+    if (window.handLandmarker) return;
+    try {
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+        window.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: {
+                modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                delegate: "GPU"
+            },
+            runningMode: "VIDEO",
+            numHands: 1
+        });
+        console.log("AR Gestures Ready");
+    } catch (e) {
+        console.error("Failed to load AR model", e);
+    }
+};
+</script>
+
 </body>
 </html>
