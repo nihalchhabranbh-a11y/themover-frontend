@@ -397,6 +397,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
             dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
             dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); });
+            document.getElementById('file-upload').addEventListener('change', function() {
+                if (this.files[0]) uploadFile(this.files[0]);
+                this.value = '';
+            });
         });
 
         function leaveWorkspace() { localStorage.removeItem('ws_code'); localStorage.removeItem('ws_name'); location.href = '/workspace.html'; }
