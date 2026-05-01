@@ -250,7 +250,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             <div id="call-controls">
                 <button class="ctrl-btn" id="btn-mic" onclick="toggleMic()">mic</button>
                 <button class="ctrl-btn" id="btn-cam" onclick="toggleCam()">videocam</button>
-                <button class="ctrl-btn" id="btn-screen" onclick="toggleScreen()">present_to_all</button>
+                <button class="ctrl-btn" id="btn-screen" onclick="shareScreen()">present_to_all</button>
                 <button class="ctrl-btn danger" onclick="leaveCall()">call_end</button>
             </div>
         </div>
@@ -338,8 +338,11 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             wsName = localStorage.getItem('ws_name') || wsCode;
             userName = localStorage.getItem('user_name') || '';
             if (!userName) { userName = prompt('Your display name:') || 'User' + (Math.random() * 1000 | 0); localStorage.setItem('user_name', userName); }
-            document.getElementById('ws-name').textContent = wsName;
-            document.getElementById('ws-code').textContent = 'Code: ' + wsCode;
+            const nameEl = document.getElementById('ws-name-display'); if (nameEl) nameEl.textContent = wsName;
+            const codeEl = document.getElementById('ws-code'); if (codeEl) codeEl.textContent = 'Code: ' + wsCode;
+            const avatarEl = document.getElementById('ws-avatar-initial'); if (avatarEl) avatarEl.textContent = wsName.charAt(0).toUpperCase();
+            const uNameEl = document.getElementById('user-name-display'); if (uNameEl) uNameEl.textContent = userName;
+            const uAvatarEl = document.getElementById('user-avatar-initial'); if (uAvatarEl) uAvatarEl.textContent = userName.charAt(0).toUpperCase();
             document.title = wsName + ' · TheMover';
             initSocket(); loadFiles();
             // SW
@@ -804,7 +807,7 @@ function getCursorColor(str) {
 let lastCursorEmit = 0;
 document.addEventListener('mousemove', e => {
     const now = Date.now();
-    if (now - lastCursorEmit > 50 && wsCode) {
+    if (socket && now - lastCursorEmit > 50 && wsCode) {
         lastCursorEmit = now;
         const xPct = e.clientX / window.innerWidth;
         const yPct = e.clientY / window.innerHeight;
@@ -812,48 +815,52 @@ document.addEventListener('mousemove', e => {
     }
 });
 
-socket.on('cursor_moved', data => {
-    const { sid, name, x, y } = data;
-    if (sid === socket.id) return;
+// We need to wait until socket is initialized
+const oldInitSocket = initSocket;
+initSocket = function() {
+    oldInitSocket();
     
-    let cursor = document.getElementById('cursor-' + sid);
-    if (!cursor) {
-        const color = getCursorColor(name);
-        cursor = document.createElement('div');
-        cursor.id = 'cursor-' + sid;
-        cursor.className = 'live-cursor';
-        cursor.style.setProperty('--color', color);
-        cursor.innerHTML = `
-            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1.20015 1.15783L5.80808 14.516C6.18321 15.6039 7.69614 15.656 8.14811 14.596L10.3704 9.38289C10.4578 9.17789 10.6176 9.01423 10.8202 8.92211L15.9314 6.59809C16.9712 6.12543 16.8929 4.60627 15.7925 4.22591L2.46313 0.655815C1.41165 0.374246 0.455246 1.45524 0.771946 2.47867L1.20015 1.15783Z" fill="${color}"/>
-                <path d="M1.20015 1.15783L5.80808 14.516C6.18321 15.6039 7.69614 15.656 8.14811 14.596L10.3704 9.38289C10.4578 9.17789 10.6176 9.01423 10.8202 8.92211L15.9314 6.59809C16.9712 6.12543 16.8929 4.60627 15.7925 4.22591L2.46313 0.655815C1.41165 0.374246 0.455246 1.45524 0.771946 2.47867L1.20015 1.15783Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>
-            <div class="live-cursor-name">${name}</div>
-        `;
-        document.body.appendChild(cursor);
-        cursors[sid] = cursor;
-    }
-    
-    const absX = x * window.innerWidth;
-    const absY = y * window.innerHeight;
-    cursor.style.transform = `translate(${absX}px, ${absY}px)`;
-    
-    // Auto-hide after 10 seconds of no movement
-    clearTimeout(cursor.hideTimeout);
-    cursor.style.opacity = 1;
-    cursor.hideTimeout = setTimeout(() => {
-        cursor.style.opacity = 0;
-    }, 10000);
-});
+    socket.on('cursor_moved', data => {
+        const { sid, name, x, y } = data;
+        if (sid === socket.id) return;
+        
+        let cursor = document.getElementById('cursor-' + sid);
+        if (!cursor) {
+            const color = getCursorColor(name);
+            cursor = document.createElement('div');
+            cursor.id = 'cursor-' + sid;
+            cursor.className = 'live-cursor';
+            cursor.style.setProperty('--color', color);
+            cursor.innerHTML = `
+                <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1.20015 1.15783L5.80808 14.516C6.18321 15.6039 7.69614 15.656 8.14811 14.596L10.3704 9.38289C10.4578 9.17789 10.6176 9.01423 10.8202 8.92211L15.9314 6.59809C16.9712 6.12543 16.8929 4.60627 15.7925 4.22591L2.46313 0.655815C1.41165 0.374246 0.455246 1.45524 0.771946 2.47867L1.20015 1.15783Z" fill="${color}"/>
+                    <path d="M1.20015 1.15783L5.80808 14.516C6.18321 15.6039 7.69614 15.656 8.14811 14.596L10.3704 9.38289C10.4578 9.17789 10.6176 9.01423 10.8202 8.92211L15.9314 6.59809C16.9712 6.12543 16.8929 4.60627 15.7925 4.22591L2.46313 0.655815C1.41165 0.374246 0.455246 1.45524 0.771946 2.47867L1.20015 1.15783Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+                <div class="live-cursor-name">${name}</div>
+            `;
+            document.body.appendChild(cursor);
+            cursors[sid] = cursor;
+        }
+        
+        const absX = x * window.innerWidth;
+        const absY = y * window.innerHeight;
+        cursor.style.transform = `translate(${absX}px, ${absY}px)`;
+        
+        // Auto-hide after 10 seconds of no movement
+        clearTimeout(cursor.hideTimeout);
+        cursor.style.opacity = 1;
+        cursor.hideTimeout = setTimeout(() => {
+            cursor.style.opacity = 0;
+        }, 10000);
+    });
 
-// Also remove cursor when someone leaves
-const origPeerLeft = socket._callbacks['$peer_left'];
-socket.on('peer_left', d => {
-    if (cursors[d.sid]) {
-        if (cursors[d.sid].parentNode) cursors[d.sid].parentNode.removeChild(cursors[d.sid]);
-        delete cursors[d.sid];
-    }
-});
+    socket.on('peer_left', d => {
+        if (cursors[d.sid]) {
+            if (cursors[d.sid].parentNode) cursors[d.sid].parentNode.removeChild(cursors[d.sid]);
+            delete cursors[d.sid];
+        }
+    });
+};
 
 </script>
 </body>
