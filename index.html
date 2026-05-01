@@ -255,10 +255,16 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 <!-- NEW: Video Filters & AR -->
                 <select id="video-filter" class="ws-input" style="width:120px; padding:6px; background:rgba(255,255,255,0.1); border:none; color:white; border-radius:6px; font-size:12px;" onchange="setVideoFilter(this.value)">
                     <option value="none">✨ No Filter</option>
-                    <option value="beauty">🌟 Beauty (Smooth)</option>
+                    <option value="beauty">🌟 Beauty</option>
                     <option value="bright">☀️ Bright</option>
                     <option value="bw">🎞️ B&W</option>
                     <option value="vintage">📻 Vintage</option>
+                    <optgroup label="Crazy VFX">
+                        <option value="neon">⚡ Cyberpunk</option>
+                        <option value="alien">👽 Thermal</option>
+                        <option value="negative">👻 Negative</option>
+                        <option value="ghost">🌫️ Ghost Trail</option>
+                    </optgroup>
                 </select>
                 <button class="ctrl-btn" id="btn-ar" onclick="toggleAR()" style="font-size:16px;" title="Enable AR Emoji Gestures">✌️</button>
 
@@ -622,16 +628,26 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     requestAnimationFrame(drawFrame);
                     
                     if (rawVid.readyState === rawVid.HAVE_ENOUGH_DATA) {
+                        let isGhost = false;
                         // Apply selected visual filter
                         if (videoFilter === 'beauty') ctx.filter = 'contrast(1.1) brightness(1.1) saturate(1.2) blur(1px)';
                         else if (videoFilter === 'bright') ctx.filter = 'brightness(1.4)';
                         else if (videoFilter === 'bw') ctx.filter = 'grayscale(100%)';
                         else if (videoFilter === 'vintage') ctx.filter = 'sepia(80%) contrast(1.2)';
+                        else if (videoFilter === 'neon') ctx.filter = 'hue-rotate(90deg) saturate(300%) contrast(1.5)';
+                        else if (videoFilter === 'alien') ctx.filter = 'invert(100%) hue-rotate(180deg) saturate(400%)';
+                        else if (videoFilter === 'negative') ctx.filter = 'invert(100%)';
+                        else if (videoFilter === 'ghost') { isGhost = true; ctx.filter = 'none'; }
                         else ctx.filter = 'none';
+                        
+                        // Ghost trail needs lower alpha to blend frames
+                        ctx.globalAlpha = isGhost ? 0.15 : 1.0;
                         
                         // Draw raw video onto canvas
                         ctx.drawImage(rawVid, 0, 0, canvas.width, canvas.height);
+                        
                         ctx.filter = 'none'; // reset for drawing emojis
+                        ctx.globalAlpha = 1.0;
                         
                         // Hand tracking (if AR enabled and model loaded)
                         if (arEnabled && window.handLandmarker) {
