@@ -208,7 +208,8 @@
 </div>
 
 <script>
-  const API_BASE = 'https://themover-3r8d.onrender.com/api';
+  const isLocal = location.hostname === 'localhost' || location.hostname.startsWith('192.168.') || location.hostname.startsWith('10.') || location.hostname.startsWith('127.');
+  const API_BASE = isLocal ? `http://${location.host}/api` : 'https://themover-3r8d.onrender.com/api';
   let pendingCode = '';
   let pendingName = '';
   let pendingWsName = '';
@@ -269,23 +270,37 @@
     const code = document.getElementById('joinCode').value.trim().toUpperCase();
     const userName = document.getElementById('joinName').value.trim();
     const err = document.getElementById('joinError');
+    const btn = document.querySelector('.card:last-of-type .btn');
     err.style.display = 'none';
 
-    if (code.length !== 6) { err.textContent = 'Code must be 6 characters.'; err.style.display = 'block'; return; }
+    if (code.length < 4) { err.textContent = 'Please enter a valid code.'; err.style.display = 'block'; return; }
     if (!userName) { err.textContent = 'Please enter your display name.'; err.style.display = 'block'; return; }
 
-    try {
-      const res = await fetch(`${API_BASE}/workspace/${code}`);
-      const data = await res.json();
-      if (data.error) { err.textContent = 'Workspace not found. Check the code.'; err.style.display = 'block'; return; }
+    // Join directly — workspace name will be updated once inside via socket event.
+    // Do NOT block on Render API (it may be cold/sleeping and cause friend to be stuck).
+    btn.textContent = 'Joining...';
+    btn.disabled = true;
 
-      localStorage.setItem('ws_code', code);
-      localStorage.setItem('ws_name', data.name);
-      localStorage.setItem('user_name', userName);
-      window.location.href = `/index.html?w=${code}`;
+    // Try to fetch workspace name, but don't block if server is slow
+    let wsName = code;
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 4000); // 4 second timeout
+      const res = await fetch(`${API_BASE}/workspace/${code}`, { signal: ctrl.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.name) wsName = data.name;
+      }
     } catch(e) {
-      err.textContent = 'Server error. Try again.'; err.style.display = 'block';
+      // Server slow or offline — join anyway, name will update from socket
+      console.warn('Workspace lookup timed out, joining anyway.');
     }
+
+    localStorage.setItem('ws_code', code);
+    localStorage.setItem('ws_name', wsName);
+    localStorage.setItem('user_name', userName);
+    window.location.href = `/index.html?w=${code}`;
   }
 </script>
 </body>
