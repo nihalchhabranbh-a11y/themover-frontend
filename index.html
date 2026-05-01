@@ -266,7 +266,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         <option value="ghost">🌫️ Ghost Trail</option>
                     </optgroup>
                 </select>
-                <button class="ctrl-btn" id="btn-ar" onclick="toggleAR()" style="font-size:16px;" title="Enable AR Emoji Gestures">✌️</button>
+                <button class="ctrl-btn" id="btn-ar" onclick="toggleAR()" style="font-size:16px;" title="Enable AR Emojis & Neon Drawing">✌️</button>
+                <input type="color" id="ar-color" value="#ff00ff" style="width:30px; height:30px; padding:0; border:none; border-radius:50%; cursor:pointer; background:transparent;" onchange="setNeonColor(this.value)" title="Neon Pen Color">
+                <button class="ctrl-btn" onclick="clearDrawing()" style="font-size:16px;" title="Clear Drawing">🧹</button>
 
                 <button class="ctrl-btn" id="btn-host" onclick="installHostAgent()" style="background:#4ade80; color:#000;" title="Auto-Host AnyDesk">settings_remote</button>
                 <button class="ctrl-btn danger" onclick="leaveCall()">call_end</button>
@@ -606,6 +608,12 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             document.getElementById('btn-ar').style.background = arEnabled ? 'var(--primary)' : 'rgba(255,255,255,.1)';
             if (arEnabled && !window.handLandmarker && window.initAR) window.initAR();
         }
+        
+        let drawingPaths = [];
+        let currentPath = null;
+        let neonColor = '#ff00ff';
+        function setNeonColor(c) { neonColor = c; }
+        function clearDrawing() { drawingPaths = []; currentPath = null; }
 
         async function joinCall() {
             try {
@@ -658,14 +666,32 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                     const indexTip = lm[8]; const indexPip = lm[6];
                                     const middleTip = lm[12]; const middlePip = lm[10];
                                     const thumbTip = lm[4]; const thumbPip = lm[2];
+                                    const ringTip = lm[16]; const ringPip = lm[14];
+                                    const pinkyTip = lm[20]; const pinkyPip = lm[18];
+                                    
+                                    // AR Neon Drawing logic: Index UP, others DOWN
+                                    const isPen = (indexTip.y < indexPip.y) && 
+                                                  (middleTip.y > middlePip.y) && 
+                                                  (ringTip.y > ringPip.y) && 
+                                                  (pinkyTip.y > pinkyPip.y);
+
+                                    if (isPen) {
+                                        if (!currentPath) {
+                                            currentPath = { color: neonColor, points: [] };
+                                            drawingPaths.push(currentPath);
+                                        }
+                                        currentPath.points.push({ x: indexTip.x * canvas.width, y: indexTip.y * canvas.height });
+                                    } else {
+                                        currentPath = null; // stop drawing line segment
+                                    }
                                     
                                     let emoji = '';
                                     // Basic logic: Thumbs up
                                     if (thumbTip.y < thumbPip.y && indexTip.y > indexPip.y) emoji = '👍';
                                     // Peace sign
-                                    else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y) emoji = '✌️';
+                                    else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y && ringTip.y > ringPip.y) emoji = '✌️';
                                     // Raised hand
-                                    else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y && thumbTip.y < thumbPip.y) emoji = '✋';
+                                    else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y && thumbTip.y < thumbPip.y && ringTip.y < ringPip.y) emoji = '✋';
                                     
                                     if (emoji) {
                                         ctx.font = '80px sans-serif';
@@ -676,6 +702,24 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                 }
                             } catch(e) {}
                         }
+                        
+                        // Draw Neon Paths
+                        drawingPaths.forEach(path => {
+                            if (path.points.length < 2) return;
+                            ctx.beginPath();
+                            ctx.moveTo(path.points[0].x, path.points[0].y);
+                            for (let i = 1; i < path.points.length; i++) {
+                                ctx.lineTo(path.points[i].x, path.points[i].y);
+                            }
+                            ctx.strokeStyle = path.color;
+                            ctx.lineWidth = 6;
+                            ctx.lineCap = 'round';
+                            ctx.lineJoin = 'round';
+                            ctx.shadowBlur = 15;
+                            ctx.shadowColor = path.color;
+                            ctx.stroke();
+                        });
+                        ctx.shadowBlur = 0; // reset
                     }
                 }
                 
