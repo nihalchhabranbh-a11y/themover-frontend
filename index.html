@@ -453,6 +453,10 @@
                         text: "OFR:" + compressed,
                         width: 512, height: 512, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
                     });
+                    setTimeout(() => {
+                        const img = document.querySelector('#qrcode img');
+                        if(img) img.removeAttribute('title');
+                    }, 100);
                     
                     document.getElementById('xenderSendStatus').textContent = "Show this QR to the receiver";
                     document.getElementById('senderScanBtn').classList.remove('hidden');
@@ -563,6 +567,10 @@
                     text: "ANS:" + compressed,
                     width: 512, height: 512, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
                 });
+                setTimeout(() => {
+                    const img = document.querySelector('#qrcodeAnswer img');
+                    if(img) img.removeAttribute('title');
+                }, 100);
                 document.getElementById('xenderReceiveStatus').textContent = "Show this to the sender to connect!";
             }
         };
