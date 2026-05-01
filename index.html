@@ -1,967 +1,727 @@
 <!DOCTYPE html>
-
-<html class="light" lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>TheMover - Minimalist File Sharing</title>
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TheMover Workspace</title>
+<link rel="manifest" href="/manifest.json"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@400,0..1&display=swap" rel="stylesheet"/>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<!-- QR Code Libraries for Local Share -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    "colors": {
-                        "on-error-container": "#93000a",
-                        "outline-variant": "#c1c6d7",
-                        "on-secondary-container": "#636262",
-                        "on-primary-fixed": "#001a41",
-                        "tertiary-container": "#737479",
-                        "surface-bright": "#fcf8fb",
-                        "secondary": "#5e5e5e",
-                        "on-secondary-fixed": "#1b1c1c",
-                        "inverse-primary": "#adc6ff",
-                        "primary-fixed-dim": "#adc6ff",
-                        "on-tertiary-fixed": "#1a1c1f",
-                        "primary-container": "#0070eb",
-                        "secondary-fixed-dim": "#c7c6c6",
-                        "surface-dim": "#dcd9dc",
-                        "surface-container-low": "#f6f3f5",
-                        "surface-container-lowest": "#ffffff",
-                        "surface-container-high": "#eae7ea",
-                        "on-tertiary-container": "#fdfcff",
-                        "surface-container": "#f0edef",
-                        "background": "#fcf8fb",
-                        "inverse-surface": "#303032",
-                        "on-tertiary": "#ffffff",
-                        "on-background": "#1b1b1d",
-                        "tertiary-fixed-dim": "#c6c6cb",
-                        "primary": "#0058bc",
-                        "surface-tint": "#005bc1",
-                        "secondary-fixed": "#e4e2e2",
-                        "on-primary-container": "#fefcff",
-                        "on-primary": "#ffffff",
-                        "surface": "#fcf8fb",
-                        "on-secondary": "#ffffff",
-                        "tertiary": "#5a5c60",
-                        "inverse-on-surface": "#f3f0f2",
-                        "primary-fixed": "#d8e2ff",
-                        "on-secondary-fixed-variant": "#464747",
-                        "tertiary-fixed": "#e2e2e7",
-                        "on-tertiary-fixed-variant": "#45474b",
-                        "error-container": "#ffdad6",
-                        "on-surface-variant": "#414755",
-                        "on-surface": "#1b1b1d",
-                        "on-primary-fixed-variant": "#004493",
-                        "error": "#ba1a1a",
-                        "outline": "#717786",
-                        "surface-variant": "#e4e2e4",
-                        "secondary-container": "#e1dfdf",
-                        "surface-container-highest": "#e4e2e4",
-                        "on-error": "#ffffff"
-                    },
-                    "borderRadius": {
-                        "DEFAULT": "1rem",
-                        "lg": "2rem",
-                        "xl": "3rem",
-                        "full": "9999px"
-                    },
-                    "spacing": {
-                        "gutter": "24px",
-                        "margin-page": "40px",
-                        "unit": "8px",
-                        "card-padding": "32px",
-                        "max-width-content": "1200px",
-                        "max-width-card": "560px"
-                    },
-                    "fontFamily": {
-                        "body-sm": ["Inter"],
-                        "headline-xl": ["Inter"],
-                        "headline-lg": ["Inter"],
-                        "label-caps": ["Inter"],
-                        "body-md": ["Inter"]
-                    },
-                    "fontSize": {
-                        "body-sm": ["15px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "400"}],
-                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
-                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
-                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
-                        "body-md": ["17px", {"lineHeight": "1.5", "letterSpacing": "-0.01em", "fontWeight": "400"}]
-                    }
-                },
-            },
-        }
-    </script>
 <style>
-        body {
-            background-color: #fcf8fb;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(0, 88, 188, 0.05) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(0, 88, 188, 0.03) 0px, transparent 50%);
-            min-height: 100vh;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(40px);
-            -webkit-backdrop-filter: blur(40px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
-        }
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-    </style>
-<style>
-    /* Ensure QR codes don't clip on small screens but remain high resolution */
-    #qrcode, #qrcodeAnswer {
-        width: 100% !important;
-        max-width: 220px !important;
-        height: auto !important;
-        margin: 0 auto;
-        display: block;
-    }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07071a;--surface:#0f0f28;--card:#16163a;--border:rgba(110,110,255,.14);
+  --primary:#6366f1;--primary-d:#4f46e5;--glow:rgba(99,102,241,.25);
+  --text:#ececf8;--muted:#7878a8;--success:#22c55e;--danger:#f87171;
+  --sidebar-w:220px;--nav-h:60px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);
+  display:flex;height:100vh;overflow:hidden;}
+/* Sidebar */
+#sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  padding:20px 12px;gap:4px;z-index:10;}
+.ws-header{padding:8px 12px 20px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+.ws-name{font-size:15px;font-weight:800;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ws-code{font-size:11px;color:var(--muted);letter-spacing:.06em;margin-top:2px;}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+  border:none;background:none;color:var(--muted);font-family:'Inter',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;width:100%;text-align:left;
+  transition:background .15s,color .15s;}
+.nav-btn:hover{background:rgba(255,255,255,.05);color:var(--text);}
+.nav-btn.active{background:rgba(99,102,241,.18);color:var(--primary);}
+.nav-btn .icon{font-size:18px;font-family:'Material Symbols Outlined';}
+.sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:6px;}
+.flash-btn{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  border:none;border-radius:10px;padding:10px 12px;font-family:'Inter',sans-serif;
+  font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;}
+.leave-btn{background:none;border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;
+  color:var(--muted);cursor:pointer;width:100%;}
+.leave-btn:hover{color:var(--danger);border-color:var(--danger);}
+/* Main */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.panel{flex:1;display:none;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+/* Files panel */
+#drop-zone{margin:20px;border:2px dashed var(--border);border-radius:16px;
+  padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;
+  position:relative;}
+#drop-zone:hover,#drop-zone.drag{border-color:var(--primary);background:var(--glow);}
+#drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.dz-icon{font-size:40px;margin-bottom:8px;display:block;}
+.dz-title{font-size:16px;font-weight:700;margin-bottom:4px;}
+.dz-sub{font-size:12px;color:var(--muted);}
+.progress-bar-wrap{height:6px;background:rgba(255,255,255,.08);border-radius:4px;
+  margin:0 20px 12px;display:none;}
+.progress-bar{height:100%;background:var(--primary);border-radius:4px;
+  transition:width .3s;width:0%;}
+#file-list{flex:1;overflow-y:auto;padding:0 20px 20px;display:flex;flex-direction:column;gap:8px;}
+.file-card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.file-icon{font-size:28px;}
+.file-info{flex:1;min-width:0;}
+.file-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file-size{font-size:11px;color:var(--muted);margin-top:2px;}
+.dl-btn{background:var(--primary);color:#fff;border:none;border-radius:8px;
+  padding:7px 14px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;
+  white-space:nowrap;transition:opacity .15s;}
+.dl-btn:hover{opacity:.85;}
+/* Chat panel */
+#chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
+.msg{max-width:72%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.5;}
+.msg.mine{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px;}
+.msg.theirs{align-self:flex-start;background:var(--card);color:var(--text);border-bottom-left-radius:4px;}
+.msg-name{font-size:11px;font-weight:700;margin-bottom:4px;opacity:.7;}
+.msg-time{font-size:10px;opacity:.5;margin-top:4px;text-align:right;}
+.chat-input-wrap{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.chat-input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:10px 14px;outline:none;}
+.chat-input:focus{border-color:var(--primary);}
+.send-btn{background:var(--primary);color:#fff;border:none;border-radius:12px;
+  padding:10px 16px;font-size:14px;cursor:pointer;font-weight:700;}
+/* Meet panel */
+#meet-lobby{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.meet-title{font-size:24px;font-weight:800;}
+.meet-sub{color:var(--muted);font-size:14px;}
+.join-call-btn{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  border:none;border-radius:14px;padding:14px 32px;font-family:'Inter',sans-serif;
+  font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px var(--glow);}
+#meet-call{flex:1;display:none;flex-direction:column;}
+#video-grid{flex:1;display:grid;gap:8px;padding:16px;background:#000;overflow:hidden;}
+.video-tile{position:relative;background:#111;border-radius:12px;overflow:hidden;}
+.video-tile video{width:100%;height:100%;object-fit:cover;}
+.tile-name{position:absolute;bottom:8px;left:8px;font-size:11px;font-weight:700;
+  background:rgba(0,0,0,.6);padding:3px 8px;border-radius:20px;}
+#call-controls{padding:12px;background:#0a0a1a;display:flex;justify-content:center;gap:12px;}
+.ctrl-btn{background:rgba(255,255,255,.1);border:none;border-radius:50%;width:48px;height:48px;
+  font-size:20px;cursor:pointer;color:#fff;font-family:'Material Symbols Outlined';
+  display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.ctrl-btn:hover{background:rgba(255,255,255,.2);}
+.ctrl-btn.danger{background:var(--danger);}
+/* Members panel */
+#panel-members{padding:20px;}
+.members-title{font-size:16px;font-weight:800;margin-bottom:16px;}
+.member-item{display:flex;align-items:center;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--border);}
+.member-avatar{width:36px;height:36px;border-radius:50%;background:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;}
+.member-name{font-size:14px;font-weight:600;}
+.member-you{font-size:11px;color:var(--muted);}
+.online-dot{width:8px;height:8px;border-radius:50%;background:var(--success);margin-left:auto;}
+/* Mobile bottom nav */
+#mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:8px 0 env(safe-area-inset-bottom,8px);z-index:50;}
+#mobile-nav .mnav-inner{display:flex;justify-content:space-around;}
+.mnav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:none;border:none;color:var(--muted);font-family:'Inter',sans-serif;
+  font-size:10px;font-weight:600;cursor:pointer;padding:4px 12px;}
+.mnav-btn.active{color:var(--primary);}
+.mnav-btn .icon{font-size:22px;font-family:'Material Symbols Outlined';}
+/* Flash Share Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+  z-index:100;display:none;align-items:flex-end;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal-sheet{background:#1a1a3a;border-radius:24px 24px 0 0;width:100%;
+  max-width:440px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;}
+.modal-header h3{font-size:16px;font-weight:700;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:22px;
+  cursor:pointer;font-family:'Material Symbols Outlined';}
+.modal-body{flex:1;overflow-y:auto;padding:20px;}
+.tab-bar{display:flex;background:rgba(255,255,255,.06);border-radius:20px;padding:3px;margin-bottom:20px;}
+.tab-pill{flex:1;padding:8px;border-radius:16px;border:none;background:none;
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;}
+.tab-pill.active{background:var(--primary);color:#fff;}
+.xender-btn{width:100%;padding:12px;border-radius:12px;border:none;
+  font-family:'Inter',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;}
+.xender-btn.primary{background:var(--primary);color:#fff;}
+.xender-btn.secondary{background:rgba(255,255,255,.08);color:var(--text);}
+.xender-input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-family:'Inter',sans-serif;
+  font-size:14px;padding:10px 14px;outline:none;margin-bottom:8px;}
+.progress-ring{width:100%;background:rgba(255,255,255,.06);border-radius:20px;height:8px;margin:8px 0;}
+.progress-fill{height:100%;background:var(--primary);border-radius:20px;
+  transition:width .3s;width:0%;}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+/* Responsive */
+@media(max-width:768px){
+  #sidebar{display:none;}
+  #mobile-nav{display:flex;}
+  body{padding-bottom:70px;}
+  .panel{height:calc(100vh - 70px);}
+}
 </style>
 </head>
-<body class="font-body-md text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed">
-<!-- TopAppBar from Shared Components -->
-<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm">
-<div class="flex justify-between items-center px-6 py-4 max-w-screen-xl mx-auto">
-<div class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-<span class="material-symbols-outlined text-primary" data-icon="cloud_upload">cloud_upload</span>
-<span>TheMover</span>
-</div>
-<nav class="hidden md:flex items-center gap-8">
-<a class="text-blue-600 font-semibold transition-opacity hover:opacity-80" href="#" onclick="alert('You are already viewing all files!'); return false;">My Files</a>
-<a class="text-indigo-600 font-bold transition-opacity hover:opacity-80 flex items-center gap-1" href="#" onclick="openXenderMode()">
-    <span class="material-symbols-outlined text-sm">wifi_tethering</span> Flash Share
-</a>
-<a class="text-slate-500 transition-opacity hover:opacity-80" href="#" onclick="alert('All files shown are shared with the group.'); return false;">Shared</a>
-<a class="text-slate-500 transition-opacity hover:opacity-80" href="#" onclick="alert('Files are automatically sorted by recent uploads.'); return false;">Recents</a>
-<a class="text-slate-500 transition-opacity hover:opacity-80" href="/admin.html">Settings</a>
-<a class="text-blue-500 font-bold transition-opacity hover:opacity-80 flex items-center gap-1" href="/TheMover-Mac.zip" download onclick="alert('Mac Installation:\\n\\n1. Open the downloaded Zip.\\n2. Double-click the TheMover.workflow file.\\n3. Click Install.\\n\\nNow you can Right-Click any file on your Mac to send it to TheMover!')">
-    <span class="material-symbols-outlined text-sm">apple</span> Mac
-</a>
-<a class="text-blue-500 font-bold transition-opacity hover:opacity-80 flex items-center gap-1" href="/TheMover-PC.zip" download onclick="alert('Windows PC Installation:\\n\\n1. Extract the downloaded Zip file.\\n2. Double-click Install-TheMover.bat\\n\\nThat\'s it! Now you can Right-Click any file -> Send To -> TheMover!')">
-    <span class="material-symbols-outlined text-sm">desktop_windows</span> PC
-</a>
-</nav>
-<div class="flex items-center gap-4">
-<button class="material-symbols-outlined text-slate-900 active:scale-95 transition-transform duration-200" data-icon="account_circle" onclick="window.location.href='/admin.html'">account_circle</button>
-</div>
-</div>
-</header>
-<!-- SideNavBar (Hidden on Mobile) -->
-<aside class="fixed left-0 top-0 hidden md:flex flex-col p-4 gap-2 h-screen w-64 border-r border-white/20 bg-white/40 backdrop-blur-2xl shadow-xl z-40 mt-[72px]">
-<div class="px-4 py-6">
-<h2 class="text-lg font-black text-slate-900">TheMover</h2>
-<p class="text-xs font-medium text-slate-500 uppercase tracking-widest mt-1">Premium Plan</p>
-</div>
-<nav class="flex flex-col gap-1">
-<a class="flex items-center gap-3 px-4 py-3 bg-blue-500/10 text-blue-600 rounded-lg transition-all duration-300" href="#" onclick="alert('You are already viewing all files!'); return false;">
-<span class="material-symbols-outlined" data-icon="folder">folder</span>
-<span class="font-medium text-sm">My Files</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 bg-indigo-500/10 text-indigo-600 rounded-lg transition-all duration-300 font-bold" href="#" onclick="openXenderMode()">
-<span class="material-symbols-outlined" data-icon="wifi_tethering">wifi_tethering</span>
-<span class="font-medium text-sm">Flash Share</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="#" onclick="alert('All files shown are shared with the group.'); return false;">
-<span class="material-symbols-outlined" data-icon="share">share</span>
-<span class="font-medium text-sm">Shared</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="#" onclick="alert('Files are automatically sorted by recent uploads.'); return false;">
-<span class="material-symbols-outlined" data-icon="history">history</span>
-<span class="font-medium text-sm">Recents</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-100/50 rounded-lg transition-all duration-300" href="/admin.html">
-<span class="material-symbols-outlined" data-icon="settings">settings</span>
-<span class="font-medium text-sm">Admin Panel</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-blue-600 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-all duration-300 font-bold" href="/TheMover-Mac.zip" download onclick="alert('Mac Installation:\\n\\n1. Open the downloaded Zip.\\n2. Double-click the TheMover.workflow file.\\n3. Click Install.\\n\\nNow you can Right-Click any file to send it to TheMover!')">
-<span class="material-symbols-outlined" data-icon="apple">apple</span>
-<span class="font-bold text-sm">Mac App</span>
-</a>
-<a class="flex items-center gap-3 px-4 py-3 text-blue-600 bg-blue-500/10 hover:bg-blue-500/20 rounded-lg transition-all duration-300 font-bold" href="/TheMover-PC.zip" download onclick="alert('Windows PC Installation:\\n\\n1. Press Win+R and type: shell:sendto\\n2. Drag the downloaded TheMover-Windows.bat file into that folder.\\n\\nNow you can Right-Click any file -> Send To -> TheMover-Windows!')">
-<span class="material-symbols-outlined" data-icon="desktop_windows">desktop_windows</span>
-<span class="font-bold text-sm">Windows PC App</span>
-</a>
-</nav>
+<body>
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="ws-header">
+    <div class="ws-name" id="ws-name">Workspace</div>
+    <div class="ws-code" id="ws-code"></div>
+  </div>
+  <button class="nav-btn active" id="nav-files" onclick="switchTab('files')">
+    <span class="icon">folder</span> Files
+  </button>
+  <button class="nav-btn" id="nav-chat" onclick="switchTab('chat')">
+    <span class="icon">chat</span> Chat
+  </button>
+  <button class="nav-btn" id="nav-meet" onclick="switchTab('meet')">
+    <span class="icon">videocam</span> Meet
+  </button>
+  <button class="nav-btn" id="nav-members" onclick="switchTab('members')">
+    <span class="icon">group</span> Members
+  </button>
+  <div class="sidebar-footer">
+    <button class="flash-btn" onclick="openFlash()">
+      <span class="icon" style="font-family:'Material Symbols Outlined'">wifi_tethering</span> Flash Share
+    </button>
+    <button class="leave-btn" onclick="leaveWorkspace()">← Leave Workspace</button>
+  </div>
 </aside>
-<!-- Main Canvas -->
-<main class="pt-32 pb-20 px-gutter flex justify-center items-start md:ml-64">
-<div class="w-full max-w-max-card glass-card rounded-[24px] p-card-padding overflow-hidden">
-<!-- Hero Upload Zone -->
-<div class="relative group cursor-pointer">
-<div id="drop-zone" class="border-2 border-dashed border-outline-variant group-hover:border-primary group-hover:bg-primary/5 transition-all duration-300 rounded-xl p-12 flex flex-col items-center justify-center gap-4 text-center">
-<div class="w-16 h-16 bg-primary-container/10 rounded-full flex items-center justify-center">
-<span class="material-symbols-outlined text-primary text-4xl" data-icon="cloud_upload">cloud_upload</span>
-</div>
-<div>
-<h2 class="font-headline-lg text-on-surface text-2xl">Drag &amp; Drop to Share</h2>
-<div id="upload-progress" style="display:none; margin-top: 15px; position:relative; z-index:10; width:100%;">
-    <p id="upload-status" style="margin-bottom: 5px; font-weight: 600; color: #007AFF;">Uploading...</p>
-    <div style="width: 100%; background: #e5e5ea; border-radius: 10px; height: 8px; overflow: hidden;">
-        <div id="progress-bar" style="width: 0%; height: 100%; background: #007AFF; transition: width 0.3s ease;"></div>
+
+<!-- Main content -->
+<div id="main">
+  <!-- Files Panel -->
+  <div class="panel active" id="panel-files">
+    <div id="drop-zone">
+      <input type="file" id="fileInput" onchange="handleFile(this)"/>
+      <span class="dz-icon">📁</span>
+      <div class="dz-title">Drop files here or click to upload</div>
+      <div class="dz-sub">Any file type · Shared with your workspace</div>
     </div>
+    <div class="progress-bar-wrap" id="upload-wrap">
+      <div class="progress-bar" id="upload-bar"></div>
+    </div>
+    <div id="upload-status" style="padding:0 20px 8px;font-size:12px;color:var(--muted);display:none;"></div>
+    <div id="file-list"><div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">Loading files…</div></div>
+  </div>
+
+  <!-- Chat Panel -->
+  <div class="panel" id="panel-chat">
+    <div id="chat-messages"><div style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">No messages yet. Say hi! 👋</div></div>
+    <div class="chat-input-wrap">
+      <input class="chat-input" id="chat-input" placeholder="Message your workspace…"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"/>
+      <button class="send-btn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+
+  <!-- Meet Panel -->
+  <div class="panel" id="panel-meet">
+    <div id="meet-lobby">
+      <div style="font-size:56px;">🎥</div>
+      <div class="meet-title">Workspace Meet</div>
+      <div class="meet-sub" id="meet-status">Start or join the workspace video call</div>
+      <button class="join-call-btn" onclick="joinCall()">Start / Join Call</button>
+    </div>
+    <div id="meet-call">
+      <div id="video-grid"></div>
+      <div id="call-controls">
+        <button class="ctrl-btn" id="btn-mic" onclick="toggleMic()" title="Mute">mic</button>
+        <button class="ctrl-btn" id="btn-cam" onclick="toggleCam()" title="Camera">videocam</button>
+        <button class="ctrl-btn" id="btn-screen" onclick="shareScreen()" title="Share screen">present_to_all</button>
+        <button class="ctrl-btn danger" onclick="leaveCall()" title="Hang up">call_end</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Members Panel -->
+  <div class="panel" id="panel-members" style="overflow-y:auto;">
+    <div class="members-title">👥 Members Online</div>
+    <div id="members-list"></div>
+  </div>
 </div>
 
-<p class="font-body-sm text-on-surface-variant mt-2">Up to 20GB per link. Fast, secure, and weightless.</p>
-</div>
-</div>
-<input class="absolute inset-0 opacity-0 cursor-pointer" type="file" id="fileInput" onchange="handleFileSelect(this)"/>
-</div>
-<!-- Content Section -->
-<section class="mt-margin-page">
-<div class="flex items-center justify-between mb-6">
-<h3 id="groupHeader" class="font-headline-lg text-lg text-on-surface">Public Hub <button onclick="joinGroup()" class="ml-2 text-sm text-primary underline">Join Group</button></h3>
-<span id="fileCount" class="font-label-caps text-primary bg-primary/10 px-3 py-1 rounded-full">0 FILES</span>
-</div>
-<!-- File List -->
-<div class="flex flex-col gap-3" id="fileList">
-<!-- Footer Action -->
-<div class="mt-8 pt-6 border-t border-white/20 flex items-center justify-between">
-<div class="flex -space-x-2">
-<img alt="User 1" class="w-8 h-8 rounded-full border-2 border-white" data-alt="portrait of a professional man smiling warmly with neutral background and soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAk8IkuEpkwXOmXwzT50_inc8hLDmY5ECLyJQ-KQIqbwUZ_Lw3YZqBxMH8PWidb-CE1nmEhA5FkuY0qoUfuWd6wKPB92hV-Db3cYqHKj4d2IZKhmF2cJbrVb3cRNIbSaKkPrk0x_AQu4w1gXIkjfjLu5OrKc8cAkwRPBDymeqOovetxosBjAdgfsiimazPt1QdOuf43x2hDqBL8tHxQBi69t8avCgQO9AcFoliBqAaNlpHUzrGp0X_wjrGdIa2kMeyy0XBnVc5Cy2M"/>
-<img alt="User 2" class="w-8 h-8 rounded-full border-2 border-white" data-alt="vibrant portrait of a young woman with natural sunlight and soft focus garden background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQ0h_nE3mgRjkgD9P0lw0IicLiO2ekvEmjU4Nd5CvtA0-e_OGl6qfqQ8fy2rY6DGNLdZln9H7FDVLjtK79cXtM4nX4XeWA2eqQ-6bB3P-4GBa2VFIGrRUFhxj7RW9hBZeNMm0WCrykc0YAohVGzT1CvXkwY9xen8JA2m9HFlP5YOVKbd6G7BTW8lFPmyoX7__TOGPtaKLspskiZmvf9q7fe68jQbUoZgWI9PgkamTgNrJtoF8I1R2KvxHnLlu7gPie61n2qr6-0-s"/>
-<div class="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[10px] font-bold">+5</div>
-</div>
-<button class="flex items-center gap-2 text-primary font-label-caps" onclick="copyShareLink()">
-<span class="material-symbols-outlined text-sm" data-icon="share">share</span>
-                        SHARE GROUP
-                    </button>
-</div>
-</section>
-</div>
-</main>
-<!-- Bottom Navigation for Mobile -->
-<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-white/20 px-6 py-3 flex justify-around items-center z-50">
-<button class="flex flex-col items-center gap-1 text-primary" onclick="alert('You are already viewing all files!'); return false;">
-<span class="material-symbols-outlined" data-icon="folder" style="font-variation-settings: 'FILL' 1;">folder</span>
-<span class="text-[10px] font-semibold">My Files</span>
-</button>
-<button class="flex flex-col items-center gap-1 text-indigo-600" onclick="openXenderMode()">
-<span class="material-symbols-outlined" data-icon="wifi_tethering">wifi_tethering</span>
-<span class="text-[10px] font-bold">Flash Share</span>
-</button>
-<div class="-mt-12 bg-primary w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-background cursor-pointer" onclick="document.getElementById('fileInput').click()">
-<span class="material-symbols-outlined text-white text-3xl" data-icon="add">add</span>
-</div>
-<button class="flex flex-col items-center gap-1 text-slate-400" onclick="alert('Files are automatically sorted by recent uploads.'); return false;">
-<span class="material-symbols-outlined" data-icon="history">history</span>
-<span class="text-[10px] font-semibold">Recents</span>
-</button>
-<button class="flex flex-col items-center gap-1 text-slate-400" onclick="window.location.href='/admin.html'">
-<span class="material-symbols-outlined" data-icon="settings">settings</span>
-<span class="text-[10px] font-semibold">Settings</span>
-</button>
+<!-- Mobile Nav -->
+<nav id="mobile-nav">
+  <div class="mnav-inner">
+    <button class="mnav-btn active" id="mnav-files" onclick="switchTab('files')">
+      <span class="icon">folder</span>Files
+    </button>
+    <button class="mnav-btn" id="mnav-chat" onclick="switchTab('chat')">
+      <span class="icon">chat</span>Chat
+    </button>
+    <button class="mnav-btn" id="mnav-meet" onclick="switchTab('meet')">
+      <span class="icon">videocam</span>Meet
+    </button>
+    <button class="mnav-btn" id="mnav-members" onclick="switchTab('members')">
+      <span class="icon">group</span>Members
+    </button>
+    <button class="mnav-btn" onclick="openFlash()">
+      <span class="icon">wifi_tethering</span>Flash
+    </button>
+  </div>
 </nav>
-<!-- Decorative Elements -->
-<div class="fixed top-20 right-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10"></div>
-<div class="fixed bottom-20 left-10 w-96 h-96 bg-primary/3 rounded-full blur-3xl -z-10"></div>
 
-<!-- Flash Share (Xender Mode) Modal -->
-<div id="xenderModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex flex-col justify-end md:justify-center items-center">
-    <div class="bg-white w-full md:w-[400px] h-[85vh] md:h-[600px] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
-        <div class="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-            <h3 class="font-bold text-indigo-900 flex items-center gap-2">
-                <span class="material-symbols-outlined">wifi_tethering</span> Flash Share
-            </h3>
-            <button onclick="closeXenderMode()" class="text-indigo-400 hover:text-indigo-700 bg-white rounded-full p-1"><span class="material-symbols-outlined text-lg">close</span></button>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center">
-            <!-- Tabs -->
-            <div class="flex bg-slate-100 p-1 rounded-full mb-6 w-full">
-                <button id="tabSend" onclick="switchXenderTab('send')" class="flex-1 py-2 text-sm font-bold rounded-full bg-white shadow-sm text-indigo-600 transition-all duration-300">Send</button>
-                <button id="tabReceive" onclick="switchXenderTab('receive')" class="flex-1 py-2 text-sm font-bold rounded-full text-slate-500 transition-all duration-300">Receive</button>
-            </div>
-
-            <!-- Send View -->
-            <div id="xenderSendView" class="w-full flex flex-col items-center text-center pb-10">
-                <p class="text-sm text-slate-500 mb-4">Select a file to generate an Offer</p>
-                <input type="file" id="xenderFileInput" class="hidden" onchange="xenderFileSelected(this)">
-                <button id="xenderChooseBtn" onclick="document.getElementById('xenderFileInput').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 mb-6 shadow-md shadow-indigo-200">
-                    <span class="material-symbols-outlined">add_circle</span> Choose File
-                </button>
-                
-                <div id="xenderQrContainer" class="hidden flex flex-col items-center w-full">
-                    <p class="font-bold text-slate-800 break-all mb-4" id="xenderFileName"></p>
-                    
-                    <!-- MANUAL FALLBACK ABOVE QR -->
-                    <div class="w-full flex flex-col items-center gap-2 mb-6">
-                        <button id="copyOfferBtn" onclick="copyXenderCode('offer')" class="text-indigo-600 font-bold text-sm bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2 hidden w-full justify-center">
-                            <span class="material-symbols-outlined text-sm">content_copy</span> Copy Offer Code
-                        </button>
-                        
-                        <div id="senderManualFallback" class="w-full mt-2 hidden">
-                            <p class="text-xs text-slate-500 mb-1 font-semibold uppercase tracking-wider text-left">Or Paste Answer Code</p>
-                            <div class="flex gap-2">
-                                <input type="text" id="manualAnswerInput" placeholder="Paste Answer..." class="flex-1 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <button onclick="handleManualAnswer()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-700">Connect</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="w-full border-t border-slate-200 pt-6 mb-6"></div>
-
-                    <!-- QR CODE AREA -->
-                    <p class="text-xs text-indigo-500 font-semibold mb-2" id="xenderSendStatus">Generating Offer...</p>
-                    <canvas class="bg-white p-2 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcode"></canvas>
-                    
-                    <button id="senderScanBtn" onclick="startSenderScanner()" class="mt-4 bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hidden">
-                        <span class="material-symbols-outlined">qr_code_scanner</span> Step 2: Scan Receiver
-                    </button>
-                    <div id="sender-qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative mt-4 shadow-inner" style="display:none;"></div>
-                </div>
-            </div>
-
-            <!-- Receive View -->
-            <div id="xenderReceiveView" class="w-full hidden flex flex-col items-center text-center h-full pb-10">
-                <div id="receiveStep1">
-                    <p class="text-sm text-slate-500 mb-4">Step 1: Scan the sender's Offer QR</p>
-                    <div id="qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative flex items-center justify-center shadow-inner mx-auto"></div>
-                    <button id="scanBtn" onclick="startReceiverScanner()" class="mt-6 mx-auto bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md">
-                        <span class="material-symbols-outlined">qr_code_scanner</span> Scan Offer
-                    </button>
-                    
-                    <div class="w-full mt-6 pt-6 border-t border-indigo-100">
-                        <p class="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">Or Paste Offer Code</p>
-                        <div class="flex gap-2">
-                            <input type="text" id="manualOfferInput" placeholder="Paste Offer Code..." class="flex-1 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <button onclick="handleManualOffer()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-700">Accept</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="receiveStep2" class="hidden flex flex-col items-center w-full">
-                    <p class="font-bold text-indigo-900 mb-4">Offer Accepted!</p>
-
-                    <!-- MANUAL FALLBACK ABOVE QR -->
-                    <div class="w-full flex flex-col items-center gap-2 mb-6">
-                        <button id="copyAnswerBtn" onclick="copyXenderCode('answer')" class="text-indigo-600 font-bold text-sm bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2 w-full justify-center">
-                            <span class="material-symbols-outlined text-sm">content_copy</span> Copy Answer Code
-                        </button>
-                    </div>
-
-                    <div class="w-full border-t border-slate-200 pt-6 mb-6"></div>
-
-                    <p class="text-xs text-slate-500 mb-2">Step 2: Let the sender scan this Answer QR</p>
-                    <canvas class="bg-white p-2 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcodeAnswer"></canvas>
-                    <p class="text-xs text-indigo-500 font-semibold mt-4" id="xenderReceiveStatus">Waiting for connection...</p>
-                </div>
-            </div>
-            
-            <!-- Transfer Status View -->
-            <div id="xenderTransferView" class="w-full hidden flex flex-col items-center justify-center text-center h-full py-10">
-                <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-4 relative">
-                    <span class="material-symbols-outlined text-indigo-500 text-4xl" data-icon="swap_calls">swap_calls</span>
-                    <div class="absolute inset-0 rounded-full border-4 border-indigo-300 animate-ping opacity-50"></div>
-                </div>
-                <h3 class="font-bold text-xl mb-1 text-slate-800">Transferring...</h3>
-                <p class="text-slate-500 text-sm mb-6" id="xenderTransferDetails">Direct Flash Speed Link Active</p>
-                
-                <div class="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden shadow-inner">
-                    <div id="xenderProgressBar" class="bg-indigo-500 h-3 rounded-full transition-all duration-300 shadow-sm" style="width: 0%"></div>
-                </div>
-                <p class="text-xs font-bold text-indigo-600" id="xenderProgressText">0%</p>
-            </div>
-        </div>
+<!-- Flash Share Modal -->
+<div class="modal-bg" id="flashModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>⚡ Flash Share</h3>
+      <button class="modal-close" onclick="closeFlash()">close</button>
     </div>
+    <div class="modal-body">
+      <div class="tab-bar">
+        <button class="tab-pill active" id="xtab-send" onclick="switchXTab('send')">Send</button>
+        <button class="tab-pill" id="xtab-receive" onclick="switchXTab('receive')">Receive</button>
+      </div>
+      <!-- Send view -->
+      <div id="xsend">
+        <input type="file" id="xenderFileInput" style="display:none" onchange="xenderFileSelected(this)"/>
+        <button class="xender-btn primary" id="xChooseBtn" onclick="document.getElementById('xenderFileInput').click()">
+          📎 Choose File to Send
+        </button>
+        <div id="xQrArea" style="display:none;text-align:center;">
+          <p id="xFileName" style="font-weight:700;margin-bottom:12px;"></p>
+          <p id="xSendStatus" style="font-size:12px;color:var(--muted);margin-bottom:8px;">Generating offer…</p>
+          <canvas id="qrcode" style="border-radius:12px;max-width:220px;width:100%;"></canvas>
+          <button class="xender-btn secondary" id="xCopyOffer" onclick="copyXCode('offer')" style="display:none;margin-top:10px;">📋 Copy Offer Code</button>
+          <div id="xManualAnswer" style="display:none;margin-top:12px;">
+            <input class="xender-input" id="manualAnswerInput" placeholder="Paste Answer Code…"/>
+            <button class="xender-btn primary" onclick="handleManualAnswer()">Connect</button>
+          </div>
+          <button class="xender-btn secondary" id="xScanAnswerBtn" onclick="startSenderScanner()" style="display:none;margin-top:10px;">📷 Scan Receiver's QR</button>
+          <div id="sender-qr-reader" style="display:none;max-width:250px;min-height:220px;margin:10px auto;border-radius:12px;overflow:hidden;background:#000;"></div>
+        </div>
+      </div>
+      <!-- Receive view -->
+      <div id="xreceive" style="display:none;text-align:center;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Scan sender's QR or paste offer code</p>
+        <div id="qr-reader" style="max-width:250px;min-height:220px;margin:0 auto 16px;border-radius:12px;overflow:hidden;background:#000;"></div>
+        <button class="xender-btn secondary" id="xScanOfferBtn" onclick="startReceiverScanner()">📷 Scan Offer QR</button>
+        <div style="margin:16px 0;color:var(--muted);font-size:12px;">— or —</div>
+        <input class="xender-input" id="manualOfferInput" placeholder="Paste Offer Code…"/>
+        <button class="xender-btn primary" onclick="handleManualOffer()">Accept Offer</button>
+        <div id="xReceiveStep2" style="display:none;margin-top:16px;text-align:center;">
+          <p style="font-weight:700;margin-bottom:8px;">✅ Offer Accepted!</p>
+          <button class="xender-btn secondary" onclick="copyXCode('answer')">📋 Copy Answer Code</button>
+          <p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">Let the sender scan:</p>
+          <canvas id="qrcodeAnswer" style="border-radius:12px;max-width:220px;width:100%;"></canvas>
+          <p id="xReceiveStatus" style="font-size:12px;color:var(--muted);margin-top:8px;">Waiting for connection…</p>
+        </div>
+      </div>
+      <!-- Transfer view -->
+      <div id="xTransfer" style="display:none;text-align:center;padding:20px 0;">
+        <div style="font-size:48px;margin-bottom:12px;">⚡</div>
+        <p style="font-weight:700;font-size:18px;margin-bottom:4px;">Transferring…</p>
+        <p id="xTransferDetail" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></p>
+        <div class="progress-ring"><div class="progress-fill" id="xProgressFill"></div></div>
+        <p id="xProgressText" style="font-size:13px;font-weight:700;color:var(--primary);margin-top:6px;">0%</p>
+      </div>
+    </div>
+  </div>
 </div>
-
 <script>
-    const API_BASE = "https://themover-3r8d.onrender.com/api";
-    const socket = io("https://themover-3r8d.onrender.com");
-    let guestAuth = "";
-    let currentGroup = localStorage.getItem('themover_group') || 'public';
+const API='https://themover-3r8d.onrender.com/api';
+const WS_URL='https://themover-3r8d.onrender.com';
+let wsCode='',wsName='',userName='',socket,chatFirst=true;
 
-    // --- Serverless Xender Mode (Flash Share) Logic ---
-    let html5QrcodeScanner = null;
-    let xenderFile = null;
-    let xenderPeer = null;
-    let xenderDataChannel = null;
-    
-    // Config for Server Reflexive candidates (needed for local router Hairpinning)
-    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+// ── Workspace Init ──────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  const p=new URLSearchParams(location.search);
+  wsCode=p.get('w')||localStorage.getItem('ws_code')||'';
+  if(!wsCode){location.href='/workspace.html';return;}
+  wsName=localStorage.getItem('ws_name')||wsCode;
+  userName=localStorage.getItem('user_name')||'';
+  if(!userName){userName=prompt('Your display name:')||'User'+(Math.random()*1000|0);localStorage.setItem('user_name',userName);}
+  document.getElementById('ws-name').textContent=wsName;
+  document.getElementById('ws-code').textContent='Code: '+wsCode;
+  document.title=wsName+' · TheMover';
+  initSocket();loadFiles();
+  // SW
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+  // Drop zone
+  const dz=document.getElementById('drop-zone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])uploadFile(e.dataTransfer.files[0]);});
+});
 
-    function openXenderMode() {
-        document.getElementById('xenderModal').classList.remove('hidden');
-        switchXenderTab('send');
+function leaveWorkspace(){localStorage.removeItem('ws_code');localStorage.removeItem('ws_name');location.href='/workspace.html';}
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+const TABS=['files','chat','meet','members'];
+function switchTab(t){
+  TABS.forEach(id=>{
+    document.getElementById('panel-'+id).classList.toggle('active',id===t);
+    const nb=document.getElementById('nav-'+id);if(nb)nb.classList.toggle('active',id===t);
+    const mb=document.getElementById('mnav-'+id);if(mb)mb.classList.toggle('active',id===t);
+  });
+}
+
+// ── Socket.IO ───────────────────────────────────────────────────────────────
+function initSocket(){
+  socket=io(WS_URL);
+  socket.on('connect',()=>socket.emit('join_workspace',{code:wsCode,name:userName}));
+  socket.on('chat_history',msgs=>{if(msgs.length){document.getElementById('chat-messages').innerHTML='';msgs.forEach(m=>appendMsg(m,false));}});
+  socket.on('chat_message',m=>appendMsg(m,true));
+  socket.on('members_list',renderMembers);
+  socket.on('user_join',d=>systemMsg(d.name+' joined'));
+  socket.on('user_leave',d=>systemMsg(d.name+' left'));
+  socket.on('call_peer_joined',onPeerJoined);
+  socket.on('call_offer',onCallOffer);
+  socket.on('call_answer',onCallAnswer);
+  socket.on('call_ice',onCallIce);
+  socket.on('call_peer_left',onPeerLeft);
+  // legacy relay
+  socket.on('relay_send_file',relayUpload);
+  socket.on('relay_chunk',onRelayChunk);
+  socket.on('use_cloud',(d)=>{clearTimeout(window._dlTimer);location.href=document.querySelector('[data-cid="'+d.public_id+'"]')?.dataset.url||'';});
+}
+
+// ── Files ───────────────────────────────────────────────────────────────────
+let hostedFiles={};
+function handleFile(inp){if(inp.files[0])uploadFile(inp.files[0]);}
+async function uploadFile(file){
+  const CHUNK=4*1024*1024,total=Math.ceil(file.size/CHUNK);
+  const uid=Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const wrap=document.getElementById('upload-wrap'),bar=document.getElementById('upload-bar');
+  const stat=document.getElementById('upload-status');
+  wrap.style.display='block';stat.style.display='block';
+  for(let i=0;i<total;i++){
+    const fd=new FormData();
+    fd.append('chunk',file.slice(i*CHUNK,(i+1)*CHUNK));
+    fd.append('index',i);fd.append('total',total);
+    fd.append('upload_id',uid);fd.append('filename',file.name);
+    await fetch(API+'/upload/chunk',{method:'POST',body:fd});
+    const pct=Math.round(((i+1)/total)*85);
+    bar.style.width=pct+'%';stat.textContent='Uploading… '+pct+'%';
+  }
+  bar.style.width='95%';stat.textContent='Finalizing…';
+  const res=await fetch(API+'/upload/finalize',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({upload_id:uid,filename:file.name,group:wsCode})});
+  const data=await res.json();
+  bar.style.width='100%';
+  if(data.file){
+    hostedFiles[data.file.public_id]=file;
+    socket.emit('register_uploader',{public_id:data.file.public_id});
+    socket.emit('chat_message',{code:wsCode,name:userName,text:'📎 Shared: '+file.name,file_url:data.file.url,file_name:file.name});
+  }
+  setTimeout(()=>{wrap.style.display='none';bar.style.width='0%';stat.style.display='none';loadFiles();},800);
+}
+function loadFiles(){
+  fetch(API+'/files?group='+wsCode).then(r=>r.json()).then(d=>{
+    const list=document.getElementById('file-list');
+    if(!d.files||!d.files.length){list.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:32px;">No files yet. Upload something!</div>';return;}
+    list.innerHTML=d.files.map(f=>{
+      const ext=f.filename.split('.').pop().toLowerCase();
+      const icon={'pdf':'📄','png':'🖼','jpg':'🖼','jpeg':'🖼','mp4':'🎬','mp3':'🎵','zip':'📦','doc':'📝','docx':'📝'}[ext]||'📁';
+      return`<div class="file-card" data-cid="${f.public_id}" data-url="${f.url}">
+        <span class="file-icon">${icon}</span>
+        <div class="file-info"><div class="file-name" title="${f.filename}">${f.filename}</div>
+        <div class="file-size">${f.size_mb?f.size_mb.toFixed(2)+' MB':''}</div></div>
+        <button class="dl-btn" onclick="startDownload('${f.public_id}','${f.url}','${f.filename}')">⬇ Get</button>
+      </div>`;
+    }).join('');
+  });
+}
+function startDownload(pid,url,name){
+  socket.emit('register_uploader',{public_id:pid});
+  window._dlTimer=setTimeout(()=>window.location.href=url,1500);
+  socket.emit('request_download',{public_id:pid});
+}
+
+// ── Chat ────────────────────────────────────────────────────────────────────
+function sendMsg(){
+  const inp=document.getElementById('chat-input'),txt=inp.value.trim();
+  if(!txt)return;
+  socket.emit('chat_message',{code:wsCode,name:userName,text:txt});
+  inp.value='';
+}
+function appendMsg(m,scroll){
+  const box=document.getElementById('chat-messages');
+  if(chatFirst){box.innerHTML='';chatFirst=false;}
+  const mine=m.name===userName;
+  const t=new Date(m.time*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const div=document.createElement('div');
+  div.className='msg '+(mine?'mine':'theirs');
+  div.innerHTML=(mine?'':'<div class="msg-name">'+m.name+'</div>')+
+    (m.file_url?`<a href="${m.file_url}" style="color:inherit;" download>${m.text}</a>`:m.text)+
+    '<div class="msg-time">'+t+'</div>';
+  box.appendChild(div);
+  if(scroll)box.scrollTop=box.scrollHeight;
+}
+function systemMsg(txt){
+  const box=document.getElementById('chat-messages');
+  if(chatFirst){box.innerHTML='';chatFirst=false;}
+  const d=document.createElement('div');
+  d.style.cssText='text-align:center;font-size:11px;color:var(--muted);padding:4px;';
+  d.textContent=txt;box.appendChild(d);
+}
+function renderMembers(list){
+  document.getElementById('members-list').innerHTML=list.map(m=>`
+    <div class="member-item">
+      <div class="member-avatar">${m.name.charAt(0).toUpperCase()}</div>
+      <div><div class="member-name">${m.name}</div>${m.name===userName?'<div class="member-you">You</div>':''}</div>
+      <div class="online-dot"></div>
+    </div>`).join('');
+}
+
+// ── Video Call ──────────────────────────────────────────────────────────────
+let localStream=null,peers={},inCall=false,micOn=true,camOn=true;
+const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
+  {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'}]};
+
+async function joinCall(){
+  try{
+    localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    addVideoTile('local',userName,localStream,true);
+    document.getElementById('meet-lobby').style.display='none';
+    document.getElementById('meet-call').style.display='flex';
+    inCall=true;
+    socket.emit('call_join',{code:wsCode,name:userName});
+    updateCallBtns();
+  }catch(e){alert('Camera/mic access denied. Please allow permissions.');}
+}
+function leaveCall(){
+  localStream?.getTracks().forEach(t=>t.stop());localStream=null;
+  Object.values(peers).forEach(pc=>pc.close());peers={};inCall=false;
+  document.getElementById('video-grid').innerHTML='';
+  document.getElementById('meet-call').style.display='none';
+  document.getElementById('meet-lobby').style.display='flex';
+}
+function mkPeer(sid,name){
+  const pc=new RTCPeerConnection(ICE);
+  if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  pc.ontrack=e=>addVideoTile(sid,name,e.streams[0],false);
+  pc.onicecandidate=e=>{if(e.candidate)socket.emit('call_ice',{target:sid,candidate:e.candidate});};
+  peers[sid]=pc;return pc;
+}
+async function onPeerJoined(d){
+  if(!inCall)return;
+  const pc=mkPeer(d.sid,d.name);
+  const offer=await pc.createOffer();await pc.setLocalDescription(offer);
+  socket.emit('call_offer',{target:d.sid,offer,name:userName});
+}
+async function onCallOffer(d){
+  if(!localStream)return;
+  const pc=mkPeer(d.sender,d.name);
+  await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+  const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
+  socket.emit('call_answer',{target:d.sender,answer:ans});
+}
+async function onCallAnswer(d){await peers[d.sender]?.setRemoteDescription(new RTCSessionDescription(d.answer));}
+async function onCallIce(d){try{await peers[d.sender]?.addIceCandidate(new RTCIceCandidate(d.candidate));}catch(e){}}
+function onPeerLeft(d){peers[d.sid]?.close();delete peers[d.sid];document.getElementById('vtile-'+d.sid)?.remove();updateGrid();}
+function addVideoTile(sid,name,stream,local){
+  const g=document.getElementById('video-grid');
+  let tile=document.getElementById('vtile-'+sid);
+  if(!tile){tile=document.createElement('div');tile.className='video-tile';tile.id='vtile-'+sid;g.appendChild(tile);}
+  tile.innerHTML=`<video id="vid-${sid}" autoplay ${local?'muted':''} playsinline></video><div class="tile-name">${name}${local?' (You)':''}</div>`;
+  document.getElementById('vid-'+sid).srcObject=stream;
+  updateGrid();
+}
+function updateGrid(){
+  const g=document.getElementById('video-grid'),n=g.children.length;
+  g.style.gridTemplateColumns=n<=1?'1fr':n<=4?'1fr 1fr':'1fr 1fr 1fr';
+}
+function toggleMic(){micOn=!micOn;localStream?.getAudioTracks().forEach(t=>t.enabled=micOn);updateCallBtns();}
+function toggleCam(){camOn=!camOn;localStream?.getVideoTracks().forEach(t=>t.enabled=camOn);updateCallBtns();}
+function updateCallBtns(){
+  document.getElementById('btn-mic').textContent=micOn?'mic':'mic_off';
+  document.getElementById('btn-mic').style.background=micOn?'rgba(255,255,255,.1)':'var(--danger)';
+  document.getElementById('btn-cam').textContent=camOn?'videocam':'videocam_off';
+  document.getElementById('btn-cam').style.background=camOn?'rgba(255,255,255,.1)':'var(--danger)';
+}
+async function shareScreen(){
+  try{
+    const ss=await navigator.mediaDevices.getDisplayMedia({video:true});
+    const track=ss.getVideoTracks()[0];
+    Object.values(peers).forEach(pc=>pc.getSenders().find(s=>s.track?.kind==='video')?.replaceTrack(track));
+    document.getElementById('vid-local').srcObject=ss;
+    track.onended=()=>{
+      const cam=localStream?.getVideoTracks()[0];
+      Object.values(peers).forEach(pc=>pc.getSenders().find(s=>s.track?.kind==='video')?.replaceTrack(cam));
+      document.getElementById('vid-local').srcObject=localStream;
+    };
+  }catch(e){}
+}
+
+// ── Flash Share ─────────────────────────────────────────────────────────────
+let xPeer=null,xDC=null,xFile=null,qrScanner=null;
+const RTC_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+function optimizeSDP(s){return s.split('\r\n').filter(l=>!l.startsWith('a=extmap:')&&!l.startsWith('a=rtcp')&&!l.startsWith('a=fmtp')&&!l.startsWith('a=rtpmap')).join('\r\n');}
+function openFlash(){document.getElementById('flashModal').classList.add('open');switchXTab('send');}
+function closeFlash(){
+  document.getElementById('flashModal').classList.remove('open');
+  if(qrScanner){qrScanner.stop().catch(()=>{});qrScanner=null;}
+  document.getElementById('qr-reader').innerHTML='';
+  document.getElementById('sender-qr-reader').innerHTML='';
+  xPeer?.close();xPeer=null;
+}
+function switchXTab(t){
+  document.getElementById('xtab-send').classList.toggle('active',t==='send');
+  document.getElementById('xtab-receive').classList.toggle('active',t==='receive');
+  document.getElementById('xsend').style.display=t==='send'?'block':'none';
+  document.getElementById('xreceive').style.display=t==='receive'?'block':'none';
+  document.getElementById('xTransfer').style.display='none';
+  if(qrScanner){qrScanner.stop().catch(()=>{});qrScanner=null;
+    document.getElementById('qr-reader').innerHTML='';
+    document.getElementById('sender-qr-reader').innerHTML='';}
+}
+function xenderFileSelected(inp){
+  if(!inp.files[0])return;
+  xFile=inp.files[0];
+  document.getElementById('xFileName').textContent=xFile.name;
+  document.getElementById('xChooseBtn').style.display='none';
+  document.getElementById('xQrArea').style.display='block';
+  document.getElementById('xSendStatus').textContent='Gathering routes…';
+  xPeer=new RTCPeerConnection(RTC_CFG);
+  xDC=xPeer.createDataChannel('flash');xDC.binaryType='arraybuffer';
+  xDC.bufferedAmountLowThreshold=64*1024;
+  xDC.onopen=startXSend;
+  xPeer.onicecandidate=e=>{
+    if(!e.candidate){
+      const sdp=optimizeSDP(xPeer.localDescription.sdp);
+      const c=LZString.compressToEncodedURIComponent(sdp);
+      new QRious({element:document.getElementById('qrcode'),value:'OFR:'+c,size:512,level:'L',padding:25});
+      document.getElementById('xSendStatus').textContent='Show this QR to receiver';
+      document.getElementById('xCopyOffer').style.display='block';
+      document.getElementById('xManualAnswer').style.display='block';
+      document.getElementById('xScanAnswerBtn').style.display='block';
     }
-
-    function closeXenderMode() {
-        document.getElementById('xenderModal').classList.add('hidden');
-        if(html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(e => {});
-            html5QrcodeScanner = null;
-            // Clear injected scanner UI so re-open always gets a clean container
-            document.getElementById('qr-reader').innerHTML = '';
-            document.getElementById('sender-qr-reader').innerHTML = '';
-        }
-        if(xenderPeer) xenderPeer.close();
-        document.getElementById('xenderQrContainer').classList.add('hidden');
-        document.getElementById('receiveStep2').classList.add('hidden');
-        document.getElementById('receiveStep1').classList.remove('hidden');
+  };
+  xPeer.createOffer().then(o=>xPeer.setLocalDescription(o));
+}
+function startXSend(){
+  document.getElementById('xsend').style.display='none';
+  document.getElementById('xTransfer').style.display='block';
+  document.getElementById('xTransferDetail').textContent='Sending: '+xFile.name;
+  xDC.send(JSON.stringify({type:'meta',name:xFile.name,size:xFile.size}));
+  let offset=0;const CS=64*1024;
+  function drain(){return new Promise(r=>{
+    if(xDC.bufferedAmount<=xDC.bufferedAmountLowThreshold)r();
+    else{xDC.onbufferedamountlow=()=>{xDC.onbufferedamountlow=null;r();};}});}
+  async function send(){
+    while(offset<xFile.size){
+      await drain();
+      const buf=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=e=>res(e.target.result);fr.onerror=rej;fr.readAsArrayBuffer(xFile.slice(offset,offset+CS));});
+      xDC.send(buf);offset+=buf.byteLength;
+      const pct=Math.min(100,Math.round(offset/xFile.size*100));
+      document.getElementById('xProgressFill').style.width=pct+'%';document.getElementById('xProgressText').textContent=pct+'%';
     }
-
-    function switchXenderTab(tab) {
-        document.getElementById('tabSend').className = tab === 'send' ? 'flex-1 py-2 text-sm font-bold rounded-full bg-white shadow-sm text-indigo-600 transition-all duration-300' : 'flex-1 py-2 text-sm font-bold rounded-full text-slate-500 hover:bg-slate-200 transition-all duration-300';
-        document.getElementById('tabReceive').className = tab === 'receive' ? 'flex-1 py-2 text-sm font-bold rounded-full bg-white shadow-sm text-indigo-600 transition-all duration-300' : 'flex-1 py-2 text-sm font-bold rounded-full text-slate-500 hover:bg-slate-200 transition-all duration-300';
-        
-        document.getElementById('xenderSendView').classList.toggle('hidden', tab !== 'send');
-        document.getElementById('xenderReceiveView').classList.toggle('hidden', tab !== 'receive');
-        document.getElementById('xenderTransferView').classList.add('hidden');
-        
-        // Stop and fully reset scanner when switching tabs
-        if(html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(e=>{});
-            html5QrcodeScanner = null;
-            document.getElementById('qr-reader').innerHTML = '';
-            document.getElementById('sender-qr-reader').innerHTML = '';
-        }
-        if(tab === 'receive') {
-            document.getElementById('scanBtn').classList.remove('hidden');
-            document.getElementById('receiveStep1').classList.remove('hidden');
-            document.getElementById('receiveStep2').classList.add('hidden');
-        } else {
-            document.getElementById('senderScanBtn').classList.remove('hidden');
-            document.getElementById('sender-qr-reader').style.display = 'none';
-        }
+    xDC.send(JSON.stringify({type:'eof'}));
+    document.getElementById('xTransferDetail').textContent='Sent! ✅';
+  }
+  send();
+}
+function startSenderScanner(){
+  const el=document.getElementById('sender-qr-reader');el.innerHTML='';el.style.display='block';
+  document.getElementById('xScanAnswerBtn').style.display='none';
+  qrScanner=new Html5Qrcode('sender-qr-reader');
+  qrScanner.start({facingMode:'environment'},{fps:10},async txt=>{
+    if(txt.startsWith('ANS:')){
+      qrScanner.stop().then(()=>qrScanner=null).catch(()=>{});
+      const sdp=LZString.decompressFromEncodedURIComponent(txt.substring(4));
+      document.getElementById('xSendStatus').textContent='Connecting…';
+      await xPeer.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp}));
     }
-
-    // --- SDP Optimizer to reduce QR Code density ---
-    function optimizeSDP(sdp) {
-        return sdp.split('\r\n').filter(line => {
-            if (line.startsWith('a=extmap:')) return false;
-            if (line.startsWith('a=rtcp')) return false;
-            if (line.startsWith('a=fmtp')) return false;
-            if (line.startsWith('a=rtpmap')) return false;
-            return true;
-        }).join('\r\n');
+  },()=>{}).catch(()=>alert('Camera denied'));
+}
+let xChunks=[],xMeta=null,xRecvBytes=0;
+function startReceiverScanner(){
+  document.getElementById('xScanOfferBtn').style.display='none';
+  document.getElementById('qr-reader').innerHTML='';
+  qrScanner=new Html5Qrcode('qr-reader');
+  qrScanner.start({facingMode:'environment'},{fps:10},async txt=>{
+    if(txt.startsWith('OFR:')){
+      qrScanner.stop().then(()=>qrScanner=null).catch(()=>{});
+      const sdp=LZString.decompressFromEncodedURIComponent(txt.substring(4));
+      handleOffer(sdp);
     }
-
-    // ========== SENDER LOGIC ==========
-    function xenderFileSelected(input) {
-        if(input.files && input.files.length > 0) {
-            xenderFile = input.files[0];
-            document.getElementById('xenderFileName').textContent = xenderFile.name;
-            document.getElementById('xenderQrContainer').classList.remove('hidden');
-            document.getElementById('xenderSendStatus').textContent = "Gathering local network routes...";
-            document.getElementById('senderScanBtn').classList.add('hidden');
-            document.getElementById('xenderChooseBtn').classList.add('hidden');
-            
-            xenderPeer = new RTCPeerConnection(rtcConfig);
-            xenderDataChannel = xenderPeer.createDataChannel('flashShare');
-            xenderDataChannel.binaryType = 'arraybuffer';
-            // Threshold must be <= chunkSize so drain fires promptly
-            xenderDataChannel.bufferedAmountLowThreshold = 64 * 1024;
-
-            xenderDataChannel.onopen = startSendingFile;
-            
-            xenderPeer.onicecandidate = e => {
-                if (!e.candidate) {
-                    // ICE Gathering Complete! Generate the QR Code.
-                    let sdp = xenderPeer.localDescription.sdp;
-                    sdp = optimizeSDP(sdp);
-                    const compressed = LZString.compressToEncodedURIComponent(sdp);
-                    
-                    new QRious({
-                        element: document.getElementById("qrcode"),
-                        value: "OFR:" + compressed,
-                        size: 512,
-                        level: 'L',
-                        padding: 25
-                    });
-                    
-                    document.getElementById('xenderSendStatus').textContent = "Show this QR to the receiver";
-                    document.getElementById('senderScanBtn').classList.remove('hidden');
-                    document.getElementById('copyOfferBtn').classList.remove('hidden');
-                    document.getElementById('senderManualFallback').classList.remove('hidden');
-                }
-            };
-
-            xenderPeer.createOffer().then(offer => xenderPeer.setLocalDescription(offer));
-        }
+  },()=>{}).catch(()=>alert('Camera denied'));
+}
+async function handleOffer(sdp){
+  document.getElementById('xreceive').style.display='none';
+  document.getElementById('xReceiveStep2').style.display='block';
+  xPeer=new RTCPeerConnection(RTC_CFG);
+  xPeer.onicecandidate=e=>{
+    if(!e.candidate){
+      const c=LZString.compressToEncodedURIComponent(optimizeSDP(xPeer.localDescription.sdp));
+      new QRious({element:document.getElementById('qrcodeAnswer'),value:'ANS:'+c,size:512,level:'L',padding:25});
+      document.getElementById('xReceiveStatus').textContent='Show to sender to connect!';
     }
-
-    function startSenderScanner() {
-        document.getElementById('senderScanBtn').classList.add('hidden');
-        // Use style.display to avoid hidden+flex Tailwind conflict
-        const readerEl = document.getElementById('sender-qr-reader');
-        readerEl.innerHTML = ''; // clear any leftover scanner UI
-        readerEl.style.display = 'block';
-        
-        html5QrcodeScanner = new Html5Qrcode("sender-qr-reader");
-        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10 },
-            async (decodedText) => {
-                if(decodedText.startsWith("ANS:")) {
-                    html5QrcodeScanner.stop().then(() => { html5QrcodeScanner = null; }).catch(e => {});
-                    const sdp = LZString.decompressFromEncodedURIComponent(decodedText.substring(4));
-                    document.getElementById('xenderSendStatus').textContent = "Answer scanned! Connecting...";
-                    await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: sdp}));
-                }
-            }, (err) => {}
-        ).catch(err => {
-            alert("Camera access denied. Please allow camera permission and try again.");
-            html5QrcodeScanner = null;
-            document.getElementById('senderScanBtn').classList.remove('hidden');
-            readerEl.style.display = 'none';
-        });
-    }
-
-    function startSendingFile() {
-        showXenderTransferUI();
-        document.getElementById('xenderTransferDetails').textContent = "Sending: " + xenderFile.name;
-
-        const CHUNK_SIZE = 64 * 1024; // 64 KB
-        let offset = 0;
-
-        // Send metadata header first
-        xenderDataChannel.send(JSON.stringify({ type: 'meta', name: xenderFile.name, size: xenderFile.size }));
-
-        // Promise that resolves as soon as the data channel buffer drains below threshold
-        function waitForDrain() {
-            return new Promise(resolve => {
-                if (xenderDataChannel.bufferedAmount <= xenderDataChannel.bufferedAmountLowThreshold) {
-                    resolve();
-                } else {
-                    xenderDataChannel.onbufferedamountlow = () => {
-                        xenderDataChannel.onbufferedamountlow = null;
-                        resolve();
-                    };
-                }
-            });
+  };
+  xPeer.ondatachannel=e=>{
+    const dc=e.channel;dc.binaryType='arraybuffer';
+    dc.onmessage=msg=>{
+      if(typeof msg.data==='string'){
+        const info=JSON.parse(msg.data);
+        if(info.type==='meta'){xMeta=info;xChunks=[];xRecvBytes=0;
+          document.getElementById('xreceive').style.display='none';
+          document.getElementById('xTransfer').style.display='block';
+          document.getElementById('xTransferDetail').textContent='Receiving: '+info.name;
+        }else if(info.type==='eof'){
+          document.getElementById('xProgressFill').style.width='100%';
+          document.getElementById('xProgressText').textContent='100%';
+          document.getElementById('xTransferDetail').textContent='Done! ✅';
+          const url=URL.createObjectURL(new Blob(xChunks));
+          const a=document.createElement('a');a.href=url;a.download=xMeta.name;a.click();URL.revokeObjectURL(url);
         }
+      }else{
+        xChunks.push(msg.data);xRecvBytes+=msg.data.byteLength;
+        const pct=Math.min(100,Math.round(xRecvBytes/xMeta.size*100));
+        document.getElementById('xProgressFill').style.width=pct+'%';document.getElementById('xProgressText').textContent=pct+'%';
+      }
+    };
+  };
+  await xPeer.setRemoteDescription(new RTCSessionDescription({type:'offer',sdp}));
+  const ans=await xPeer.createAnswer();await xPeer.setLocalDescription(ans);
+}
+function copyXCode(type){
+  const sdp=optimizeSDP(xPeer.localDescription.sdp);
+  const code=(type==='offer'?'OFR:':'ANS:')+LZString.compressToEncodedURIComponent(sdp);
+  navigator.clipboard.writeText(code).then(()=>alert(type==='offer'?'Offer copied!':'Answer copied!'));
+}
+async function handleManualOffer(){
+  const code=document.getElementById('manualOfferInput').value.trim();
+  if(!code.startsWith('OFR:')){alert('Invalid code');return;}
+  const sdp=LZString.decompressFromEncodedURIComponent(code.substring(4));
+  if(sdp)handleOffer(sdp);else alert('Invalid code');
+}
+async function handleManualAnswer(){
+  const code=document.getElementById('manualAnswerInput').value.trim();
+  if(!code.startsWith('ANS:')){alert('Invalid code');return;}
+  const sdp=LZString.decompressFromEncodedURIComponent(code.substring(4));
+  if(sdp)await xPeer.setRemoteDescription(new RTCSessionDescription({type:'answer',sdp}));else alert('Invalid code');
+}
 
-        // Read one slice from disk as an ArrayBuffer
-        function readSlice(start) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(xenderFile.slice(start, start + CHUNK_SIZE));
-            });
-        }
-
-        // Main async send loop — waits for drain before each chunk
-        async function sendChunks() {
-            while (offset < xenderFile.size) {
-                await waitForDrain();
-                const buffer = await readSlice(offset);
-                xenderDataChannel.send(buffer);
-                offset += buffer.byteLength;
-                const progress = Math.min(100, Math.round((offset / xenderFile.size) * 100));
-                document.getElementById('xenderProgressBar').style.width = progress + '%';
-                document.getElementById('xenderProgressText').textContent = progress + '%';
-            }
-            // Signal end-of-file
-            xenderDataChannel.send(JSON.stringify({ type: 'eof' }));
-            document.getElementById('xenderTransferDetails').textContent = "Sent successfully! ✅";
-        }
-
-        sendChunks().catch(err => {
-            console.error("Send error:", err);
-            document.getElementById('xenderTransferDetails').textContent = "Send failed. Please retry.";
-        });
-    }
-
-
-    // ========== RECEIVER LOGIC ==========
-    let incomingXenderChunks = [];
-    let incomingXenderMeta = null;
-    let receivedBytes = 0;
-
-    function startReceiverScanner() {
-        document.getElementById('scanBtn').classList.add('hidden');
-        // Always clear container before injecting new scanner instance
-        const readerEl = document.getElementById('qr-reader');
-        readerEl.innerHTML = '';
-        
-        html5QrcodeScanner = new Html5Qrcode("qr-reader");
-        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10 },
-            async (decodedText) => {
-                if(decodedText.startsWith("OFR:")) {
-                    html5QrcodeScanner.stop().then(() => { html5QrcodeScanner = null; }).catch(e => {});
-                    const sdp = LZString.decompressFromEncodedURIComponent(decodedText.substring(4));
-                    handleSenderOffer(sdp);
-                }
-            }, (err) => {}
-        ).catch(err => {
-            alert("Camera access denied. Please allow camera permission and try again.");
-            html5QrcodeScanner = null;
-            document.getElementById('scanBtn').classList.remove('hidden');
-        });
-    }
-
-    async function handleSenderOffer(sdp) {
-        document.getElementById('receiveStep1').classList.add('hidden');
-        document.getElementById('receiveStep2').classList.remove('hidden');
-        document.getElementById('xenderReceiveStatus').textContent = "Generating Answer...";
-
-        xenderPeer = new RTCPeerConnection(rtcConfig);
-        
-        xenderPeer.onicecandidate = e => {
-            if (!e.candidate) {
-                let answerSdp = xenderPeer.localDescription.sdp;
-                answerSdp = optimizeSDP(answerSdp);
-                const compressed = LZString.compressToEncodedURIComponent(answerSdp);
-                
-                new QRious({
-                    element: document.getElementById("qrcodeAnswer"),
-                    value: "ANS:" + compressed,
-                    size: 512,
-                    level: 'L',
-                    padding: 25
-                });
-                
-                document.getElementById('xenderReceiveStatus').textContent = "Show this to the sender to connect!";
-            }
-        };
-
-        xenderPeer.ondatachannel = e => {
-            const dc = e.channel;
-            dc.binaryType = 'arraybuffer';
-            dc.onmessage = msg => {
-                if (typeof msg.data === 'string') {
-                    const info = JSON.parse(msg.data);
-                    if (info.type === 'meta') {
-                        incomingXenderMeta = info;
-                        incomingXenderChunks = [];
-                        receivedBytes = 0;
-                        showXenderTransferUI();
-                        document.getElementById('xenderTransferDetails').textContent = "Receiving: " + info.name;
-                    } else if (info.type === 'eof') {
-                        document.getElementById('xenderProgressBar').style.width = '100%';
-                        document.getElementById('xenderProgressText').textContent = '100%';
-                        document.getElementById('xenderTransferDetails').textContent = "Download complete!";
-                        const blob = new Blob(incomingXenderChunks);
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = incomingXenderMeta.name;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                    }
-                } else {
-                    incomingXenderChunks.push(msg.data);
-                    receivedBytes += msg.data.byteLength;
-                    let progress = Math.min(100, Math.round((receivedBytes / incomingXenderMeta.size) * 100));
-                    document.getElementById('xenderProgressBar').style.width = progress + '%';
-                    document.getElementById('xenderProgressText').textContent = progress + '%';
-                }
-            };
-        };
-
-        await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'offer', sdp: sdp}));
-        const answer = await xenderPeer.createAnswer();
-        await xenderPeer.setLocalDescription(answer);
-    }
-
-    // --- Manual Fallback Functions ---
-    function copyXenderCode(type) {
-        let code = "";
-        if (type === 'offer') {
-            const sdp = optimizeSDP(xenderPeer.localDescription.sdp);
-            code = "OFR:" + LZString.compressToEncodedURIComponent(sdp);
-        } else if (type === 'answer') {
-            const sdp = optimizeSDP(xenderPeer.localDescription.sdp);
-            code = "ANS:" + LZString.compressToEncodedURIComponent(sdp);
-        }
-        navigator.clipboard.writeText(code).then(() => {
-            alert(type.charAt(0).toUpperCase() + type.slice(1) + " Code copied to clipboard! Send it to the other device.");
-        });
-    }
-
-    async function handleManualOffer() {
-        const code = document.getElementById('manualOfferInput').value.trim();
-        if (code.startsWith("OFR:")) {
-            const sdp = LZString.decompressFromEncodedURIComponent(code.substring(4));
-            if (sdp) {
-                handleSenderOffer(sdp);
-            } else {
-                alert("Invalid Offer Code.");
-            }
-        } else {
-            alert("Invalid Offer Code format.");
-        }
-    }
-
-    async function handleManualAnswer() {
-        const code = document.getElementById('manualAnswerInput').value.trim();
-        if (code.startsWith("ANS:")) {
-            const sdp = LZString.decompressFromEncodedURIComponent(code.substring(4));
-            if (sdp) {
-                document.getElementById('xenderSendStatus').textContent = "Answer accepted! Connecting...";
-                await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: sdp}));
-            } else {
-                alert("Invalid Answer Code.");
-            }
-        } else {
-            alert("Invalid Answer Code format.");
-        }
-    }
-
-    function showXenderTransferUI() {
-        document.getElementById('xenderSendView').classList.add('hidden');
-        document.getElementById('xenderReceiveView').classList.add('hidden');
-        document.getElementById('xenderTransferView').classList.remove('hidden');
-        document.getElementById('xenderProgressBar').style.width = '0%';
-        document.getElementById('xenderProgressText').textContent = '0%';
-    }
-    // --- End Serverless Xender Mode Logic ---
-
-    function joinGroup() {
-        const code = prompt("Enter Group Code to join (or leave blank for Public Hub):");
-        if (code !== null) {
-            currentGroup = code.trim() || 'public';
-            localStorage.setItem('themover_group', currentGroup);
-            updateGroupUI();
-            loadFiles();
-        }
-    }
-
-    function updateGroupUI() {
-        const header = document.getElementById('groupHeader');
-        if (currentGroup === 'public') {
-            header.innerHTML = `Public Hub <button onclick="joinGroup()" class="ml-2 text-sm text-primary underline">Join Group</button>`;
-        } else {
-            header.innerHTML = `Group: ${currentGroup} <button onclick="joinGroup()" class="ml-2 text-sm text-red-500 underline">Leave</button>`;
-        }
-    }
-    
-    // Initialize UI and check for Share Links
-    window.addEventListener('DOMContentLoaded', () => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('group')) {
-            currentGroup = params.get('group');
-            localStorage.setItem('themover_group', currentGroup);
-            // Clean up the URL
-            window.history.replaceState({}, document.title, "/index.html");
-        }
-        updateGroupUI();
-    });
-
-    // --- Smart Transfer Logic (Socket.io Relay) ---
-    let hostedFiles = {};
-    const MAX_RELAY_SIZE_MB = 50; // Relay files up to 50MB, larger go direct to cloud
-
-    // On page load, re-register session files
-    socket.on('connect', () => {
-        for (const public_id in hostedFiles) {
-            socket.emit('register_uploader', { public_id });
-        }
-    });
-
-    function showTransferStatus(msg) {
-        let el = document.getElementById('transfer-status');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'transfer-status';
-            el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:10px 24px;border-radius:20px;font-size:14px;font-weight:600;z-index:9999;transition:opacity 0.5s;pointer-events:none';
-            document.body.appendChild(el);
-        }
-        el.textContent = msg;
-        el.style.opacity = '1';
-        clearTimeout(el._timer);
-        el._timer = setTimeout(() => { el.style.opacity = '0'; }, 5000);
-    }
-
-    function requestSmartDownload(public_id, cloud_url, filename) {
-        const file = hostedFiles[public_id];
-        // If the file is in memory AND small enough, relay it via socket
-        if (file && file.size <= MAX_RELAY_SIZE_MB * 1024 * 1024) {
-            // File is in this browser's memory — but we need to send it to downloader
-            // Just register as uploader, downloader will request it
-            socket.emit('register_uploader', { public_id });
-        }
-        showTransferStatus('⚡ Checking for fast source...');
-        socket.emit('request_download', { public_id });
-        window.downloadTimeout = setTimeout(() => {
-            showTransferStatus('☁️ Downloading from Cloud...');
-            window.location.href = cloud_url;
-        }, 3000);
-    }
-
-    // --- UPLOADER SIDE: Server asks Mac to send file ---
-    socket.on('relay_send_file', (data) => {
-        const { downloader_sid, public_id } = data;
-        const file = hostedFiles[public_id];
-        if (!file) {
-            socket.emit('uploader_unavailable', { downloader_sid, public_id });
-            return;
-        }
-        showTransferStatus('⚡ Sending file via relay...');
-        const chunkSize = 64 * 1024; // 64KB chunks
-        let offset = 0;
-        const reader = new FileReader();
-        
-        // Send metadata first
-        socket.emit('relay_chunk', { downloader_sid, public_id, meta: { name: file.name, size: file.size } });
-        
-        const sendNextChunk = () => {
-            if (offset >= file.size) {
-                socket.emit('relay_chunk', { downloader_sid, public_id, eof: true });
-                showTransferStatus('✅ File sent!');
-                return;
-            }
-            const slice = file.slice(offset, offset + chunkSize);
-            reader.readAsArrayBuffer(slice);
-        };
-        
-        reader.onload = e => {
-            const buffer = e.target.result;
-            offset += buffer.byteLength;
-            // Convert to base64 for socket.io transport
-            const bytes = new Uint8Array(buffer);
-            let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-            const b64 = btoa(binary);
-            socket.emit('relay_chunk', { downloader_sid, public_id, chunk: b64 }, () => {
-                // Wait for ack before sending next chunk (flow control)
-                sendNextChunk();
-            });
-        };
-        sendNextChunk();
-    });
-
-    // --- DOWNLOADER SIDE: Receive relayed file ---
-    let relayChunks = [];
-    let relayMeta = null;
-
-    socket.on('relay_chunk', (data) => {
-        clearTimeout(window.downloadTimeout);
-        if (data.meta) {
-            relayChunks = [];
-            relayMeta = data.meta;
-            showTransferStatus('⚡ Receiving via Relay...');
-            return;
-        }
-        if (data.eof) {
-            const blob = new Blob(relayChunks);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = relayMeta.name;
-            a.click();
-            URL.revokeObjectURL(url);
-            showTransferStatus('✅ Download complete!');
-            return;
-        }
-        if (data.chunk) {
-            // Convert base64 back to binary
-            const binary = atob(data.chunk);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            relayChunks.push(bytes.buffer);
-        }
-    });
-
-    socket.on('use_cloud', (data) => {
-        clearTimeout(window.downloadTimeout);
-        showTransferStatus('☁️ Downloading from Cloud...');
-        const cards = document.querySelectorAll('[data-public-id="' + data.public_id + '"]');
-        cards.forEach(card => {
-            const url = card.getAttribute('data-cloud-url');
-            if (url) window.location.href = url;
-        });
-    });
-    // --- End Smart Transfer Logic ---
-
-    fetch(`${API_BASE}/settings`)
-        .then(res => res.json())
-        .then(settings => {
-            if(settings.require_password) {
-                const pass = prompt("This hub is locked. Enter guest password:");
-                if(pass) {
-                    guestAuth = "Basic " + btoa("guest:" + pass);
-                }
-            }
-            loadFiles();
-        });
-
-    const dropZone = document.getElementById('drop-zone');
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#007AFF'; });
-    dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.style.borderColor = ''; });
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = '';
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            uploadFileObj(e.dataTransfer.files[0]);
-        }
-    });
-
-    function handleFileSelect(input) {
-        if(input.files && input.files.length > 0) {
-            uploadFileObj(input.files[0]);
-        }
-    }
-
-    function loadFiles() {
-        fetch(`${API_BASE}/files?group=${currentGroup}`, {
-            headers: guestAuth ? { "Authorization": guestAuth } : {}
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.error) return alert(data.error);
-            const list = document.getElementById('fileList');
-            list.innerHTML = "";
-            document.getElementById('fileCount').innerText = data.files.length + " FILES";
-            data.files.forEach(f => {
-                let sizeStr = f.size_mb ? f.size_mb.toFixed(2) + " MB" : "Unknown Size";
-                list.innerHTML += `
-                <div class="flex items-center justify-between p-4 bg-white/50 hover:bg-white/80 transition-colors rounded-lg border border-white/20" data-public-id="${f.public_id}" data-cloud-url="${f.url}">
-                    <div class="flex items-center gap-4">
-                        <button onclick="requestSmartDownload('${f.public_id}', '${f.url}', '${f.filename}')" class="p-2 bg-primary-container text-white rounded-xl hover:opacity-90 transition-opacity">
-                            <span class="material-symbols-outlined">download</span>
-                        </button>
-                        <div>
-                            <p class="font-body-md font-semibold text-slate-800" style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${f.filename}</p>
-                            <p class="text-xs text-slate-500">${sizeStr}</p>
-                        </div>
-                    </div>
-                    <button onclick="requestSmartDownload('${f.public_id}', '${f.url}', '${f.filename}')" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-full font-bold tracking-normal active:scale-95 transition-all duration-200">Get</button>
-                </div>`;
-            });
-        });
-    }
-
-    function uploadFileObj(file) {
-        document.getElementById('upload-progress').style.display = 'block';
-        document.getElementById('progress-bar').style.width = '50%';
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("group", currentGroup);
-        fetch(`${API_BASE}/upload`, {
-            method: "POST",
-            headers: guestAuth ? { "Authorization": guestAuth } : {},
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('progress-bar').style.width = '100%';
-            if(data.file) hostedFiles[data.file.public_id] = file;
-            socket.emit('register_uploader', { public_id: data.file.public_id });
-            setTimeout(() => {
-                document.getElementById('upload-progress').style.display = 'none';
-                document.getElementById('progress-bar').style.width = '0%';
-                if(data.error) alert(data.error);
-                loadFiles();
-            }, 500);
-        });
-    }
-
-    function copyShareLink() {
-        navigator.clipboard.writeText(window.location.href);
-        alert("Share link copied to clipboard!");
-    }
+// ── Legacy Relay (download) ──────────────────────────────────────────────────
+let relayChunks=[],relayMeta=null;
+function relayUpload(d){
+  const {downloader_sid,public_id}=d,file=hostedFiles[public_id];
+  if(!file){socket.emit('uploader_unavailable',{downloader_sid,public_id});return;}
+  const CS=64*1024;let offset=0;
+  socket.emit('relay_chunk',{downloader_sid,public_id,meta:{name:file.name,size:file.size}});
+  function next(){
+    if(offset>=file.size){socket.emit('relay_chunk',{downloader_sid,public_id,eof:true});return;}
+    const fr=new FileReader();
+    fr.onload=e=>{
+      const b=new Uint8Array(e.target.result);let s='';
+      for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);
+      socket.emit('relay_chunk',{downloader_sid,public_id,chunk:btoa(s)},next);
+      offset+=e.target.result.byteLength;
+    };
+    fr.readAsArrayBuffer(file.slice(offset,offset+CS));
+  }
+  next();
+}
+function onRelayChunk(d){
+  clearTimeout(window._dlTimer);
+  if(d.meta){relayChunks=[];relayMeta=d.meta;return;}
+  if(d.eof){const url=URL.createObjectURL(new Blob(relayChunks));const a=document.createElement('a');a.href=url;a.download=relayMeta.name;a.click();URL.revokeObjectURL(url);return;}
+  if(d.chunk){const b=atob(d.chunk),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);relayChunks.push(u.buffer);}
+}
 </script>
 </body>
 </html>

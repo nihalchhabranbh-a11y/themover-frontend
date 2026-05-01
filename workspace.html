@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TheMover — Your Workspace</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #07071a;
+    --surface: #0f0f2a;
+    --card: #15153a;
+    --border: rgba(120,120,255,0.15);
+    --primary: #6366f1;
+    --primary-light: #818cf8;
+    --primary-glow: rgba(99,102,241,0.25);
+    --text: #eeeef8;
+    --muted: #8b8bb0;
+  }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+  /* Background orbs */
+  body::before {
+    content: '';
+    position: fixed; top: -20%; left: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed; bottom: -20%; right: -10%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .wrapper { position: relative; z-index: 1; width: 100%; max-width: 420px; }
+  .logo {
+    text-align: center; margin-bottom: 40px;
+  }
+  .logo-icon {
+    font-size: 52px; display: block; margin-bottom: 12px;
+    filter: drop-shadow(0 0 20px rgba(99,102,241,0.6));
+  }
+  .logo h1 {
+    font-size: 30px; font-weight: 900; letter-spacing: -0.04em;
+    background: linear-gradient(135deg, #a5b4fc, #6366f1, #c084fc);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: border-color 0.2s;
+  }
+  .card:focus-within { border-color: rgba(120,120,255,0.4); }
+  .card h2 {
+    font-size: 17px; font-weight: 700; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .emoji { font-size: 20px; }
+  .card p { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+
+  input[type="text"] {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 12px;
+  }
+  input[type="text"]::placeholder { color: var(--muted); }
+  input[type="text"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+  }
+
+  .btn {
+    width: 100%; padding: 13px 20px;
+    border-radius: 12px; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    box-shadow: 0 4px 20px var(--primary-glow);
+  }
+  .btn-primary:hover { box-shadow: 0 6px 28px rgba(99,102,241,0.45); }
+  .btn-secondary {
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+  .divider {
+    text-align: center; color: var(--muted); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.05em; text-transform: uppercase; margin: 4px 0 16px;
+    position: relative;
+  }
+  .divider::before, .divider::after {
+    content: ''; position: absolute; top: 50%; width: 38%; height: 1px;
+    background: var(--border);
+  }
+  .divider::before { left: 0; }
+  .divider::after { right: 0; }
+
+  .result-box {
+    display: none;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 12px; padding: 16px; margin-top: 12px; text-align: center;
+  }
+  .result-box .code {
+    font-size: 32px; font-weight: 900; letter-spacing: 0.12em;
+    color: var(--primary-light); font-variant-numeric: tabular-nums;
+  }
+  .result-box .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .error { color: #f87171; font-size: 13px; margin-top: 8px; display: none; }
+
+  .features {
+    display: flex; justify-content: center; gap: 24px;
+    margin-top: 32px; color: var(--muted); font-size: 12px;
+  }
+  .feature { display: flex; align-items: center; gap: 6px; }
+  .feature span { font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="logo">
+    <span class="logo-icon">🚀</span>
+    <h1>TheMover</h1>
+    <p>Your team's workspace for files, chat & meetings</p>
+  </div>
+
+  <!-- Create Workspace -->
+  <div class="card">
+    <h2><span class="emoji">✨</span> Create a Workspace</h2>
+    <p>Give your workspace a name — your team will join using an invite code.</p>
+    <input type="text" id="createName" placeholder="e.g. Design Team, My Crew…" maxlength="40"/>
+    <input type="text" id="yourName" placeholder="Your display name" maxlength="30"/>
+    <button class="btn btn-primary" onclick="createWorkspace()">
+      <span>🚀</span> Create Workspace
+    </button>
+    <div class="result-box" id="createResult">
+      <div class="hint">Your invite code</div>
+      <div class="code" id="createdCode">——</div>
+      <div class="hint" style="margin-top:8px;">Share this with your team</div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="enterWorkspace()">
+        Enter Workspace →
+      </button>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="copyInviteLink()">
+        📋 Copy Invite Link
+      </button>
+    </div>
+    <div class="error" id="createError"></div>
+  </div>
+
+  <div class="divider">or</div>
+
+  <!-- Join Workspace -->
+  <div class="card">
+    <h2><span class="emoji">🔑</span> Join a Workspace</h2>
+    <p>Enter the 6-character invite code shared by your team.</p>
+    <input type="text" id="joinCode" placeholder="Enter code e.g. ABC123" maxlength="6"
+      oninput="this.value = this.value.toUpperCase()"
+      onkeydown="if(event.key==='Enter') joinWorkspace()"/>
+    <input type="text" id="joinName" placeholder="Your display name" maxlength="30"/>
+    <button class="btn btn-secondary" onclick="joinWorkspace()">
+      <span>🔑</span> Join Workspace
+    </button>
+    <div class="error" id="joinError"></div>
+  </div>
+
+  <div class="features">
+    <div class="feature"><span>⚡</span> Instant files</div>
+    <div class="feature"><span>💬</span> Live chat</div>
+    <div class="feature"><span>🎥</span> Video calls</div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'https://themover-3r8d.onrender.com/api';
+  let pendingCode = '';
+  let pendingName = '';
+  let pendingWsName = '';
+
+  // Auto-fill from invite link (?join=CODE)
+  window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const joinCode = params.get('join');
+    if (joinCode) {
+      document.getElementById('joinCode').value = joinCode.toUpperCase();
+      document.getElementById('joinName').focus();
+    }
+  });
+
+  async function createWorkspace() {
+    const name = document.getElementById('createName').value.trim();
+    const userName = document.getElementById('yourName').value.trim();
+    const err = document.getElementById('createError');
+    err.style.display = 'none';
+
+    if (!name) { err.textContent = 'Please enter a workspace name.'; err.style.display = 'block'; return; }
+    if (!userName) { err.textContent = 'Please enter your display name.'; err.style.display = 'block'; return; }
+
+    try {
+      const res = await fetch(`${API_BASE}/workspace/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.error) { err.textContent = data.error; err.style.display = 'block'; return; }
+
+      pendingCode = data.code;
+      pendingName = userName;
+      pendingWsName = data.name;
+
+      document.getElementById('createdCode').textContent = data.code;
+      document.getElementById('createResult').style.display = 'block';
+      localStorage.setItem('user_name', userName);
+    } catch(e) {
+      err.textContent = 'Server error. Try again.'; err.style.display = 'block';
+    }
+  }
+
+  function enterWorkspace() {
+    localStorage.setItem('ws_code', pendingCode);
+    localStorage.setItem('ws_name', pendingWsName);
+    localStorage.setItem('user_name', pendingName);
+    window.location.href = `/index.html?w=${pendingCode}`;
+  }
+
+  function copyInviteLink() {
+    const link = `${window.location.origin}/workspace.html?join=${pendingCode}`;
+    navigator.clipboard.writeText(link).then(() => alert('Invite link copied!'));
+  }
+
+  async function joinWorkspace() {
+    const code = document.getElementById('joinCode').value.trim().toUpperCase();
+    const userName = document.getElementById('joinName').value.trim();
+    const err = document.getElementById('joinError');
+    err.style.display = 'none';
+
+    if (code.length !== 6) { err.textContent = 'Code must be 6 characters.'; err.style.display = 'block'; return; }
+    if (!userName) { err.textContent = 'Please enter your display name.'; err.style.display = 'block'; return; }
+
+    try {
+      const res = await fetch(`${API_BASE}/workspace/${code}`);
+      const data = await res.json();
+      if (data.error) { err.textContent = 'Workspace not found. Check the code.'; err.style.display = 'block'; return; }
+
+      localStorage.setItem('ws_code', code);
+      localStorage.setItem('ws_name', data.name);
+      localStorage.setItem('user_name', userName);
+      window.location.href = `/index.html?w=${code}`;
+    } catch(e) {
+      err.textContent = 'Server error. Try again.'; err.style.display = 'block';
+    }
+  }
+</script>
+</body>
+</html>
