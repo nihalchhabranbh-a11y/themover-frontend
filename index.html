@@ -251,6 +251,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 <button class="ctrl-btn" id="btn-mic" onclick="toggleMic()">mic</button>
                 <button class="ctrl-btn" id="btn-cam" onclick="toggleCam()">videocam</button>
                 <button class="ctrl-btn" id="btn-screen" onclick="shareScreen()">present_to_all</button>
+                <button class="ctrl-btn" id="btn-host" onclick="installHostAgent()" style="background:#4ade80; color:#000;" title="Auto-Host AnyDesk">settings_remote</button>
                 <button class="ctrl-btn danger" onclick="leaveCall()">call_end</button>
             </div>
         </div>
@@ -677,6 +678,39 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 btn.textContent = '🎮 Take Control';
             }
         }
+        
+        function installHostAgent() {
+            const isMac = navigator.userAgent.includes('Mac');
+            let content, filename;
+            if (isMac) {
+                content = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CommandString</key>
+    <string>curl -s -o /tmp/tm_agent.py ${API}/agent.py; python3 /tmp/tm_agent.py ${wsCode}; exit</string>
+    <key>RunCommandAsShell</key>
+    <true/>
+</dict>
+</plist>`;
+                filename = 'Host-TheMover.terminal';
+            } else {
+                content = `@echo off\ncurl -s -o tm_agent.py ${API}/agent.py\npython tm_agent.py ${wsCode}\ndel tm_agent.py\npause`;
+                filename = 'Host-TheMover.bat';
+            }
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            alert("Host script downloaded!\n\nTo allow your friend to control your PC, just CLICK the downloaded file in your browser's download bar.\nIt will automatically run and connect to this workspace!");
+        }
+
         function updateGrid() {
             const g = document.getElementById('video-grid'), n = g.children.length;
             g.style.gridTemplateColumns = n <= 1 ? '1fr' : n <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
