@@ -443,7 +443,17 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
         // ── Files ───────────────────────────────────────────────────────────────────
         let hostedFiles = {};
-        function handleFile(inp) { if (inp.files[0]) uploadFile(inp.files[0]); }
+        function handleFile(inp) { 
+            if (inp.files[0]) {
+                const file = inp.files[0];
+                if (file.size > 16 * 1024 * 1024) {
+                    alert('Error: File size is limited to 16MB for chat uploads.');
+                    inp.value = '';
+                    return;
+                }
+                uploadFile(file); 
+            }
+        }
         async function uploadFile(file) {
             const CHUNK = 4 * 1024 * 1024, total = Math.ceil(file.size / CHUNK);
             const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
