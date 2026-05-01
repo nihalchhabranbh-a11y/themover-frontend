@@ -326,8 +326,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
 <script>
 
-        const API = 'https://themover-3r8d.onrender.com/api';
-        const WS_URL = 'https://themover-3r8d.onrender.com';
+        const isLocal = location.hostname === 'localhost' || location.hostname.startsWith('192.168.') || location.hostname.startsWith('10.') || location.hostname.startsWith('127.');
+        const API = isLocal ? `http://${location.host}/api` : 'https://themover-3r8d.onrender.com/api';
+        const WS_URL = isLocal ? `http://${location.host}` : 'https://themover-3r8d.onrender.com';
         let wsCode = '', wsName = '', userName = '', socket, chatFirst = true;
 
         // ── Workspace Init ──────────────────────────────────────────────────────────
