@@ -232,8 +232,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <div class="panel" id="panel-chat">
         <div id="chat-messages"></div>
         <div class="chat-input-wrap">
-            <input type="text" class="chat-input" id="chat-input" placeholder="Type a message...">
-            <button class="send-btn" onclick="sendChat()">send</button>
+            <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') sendMsg()">
+            <button class="send-btn" onclick="sendMsg()">send</button>
         </div>
     </div>
     
