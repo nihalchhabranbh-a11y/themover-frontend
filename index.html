@@ -9,7 +9,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <!-- QR Code Libraries for Local Share -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -121,11 +121,12 @@
     </style>
 <style>
     /* Ensure QR codes don't clip on small screens but remain high resolution */
-    #qrcode canvas, #qrcode img, #qrcodeAnswer canvas, #qrcodeAnswer img {
+    #qrcode, #qrcodeAnswer {
         width: 100% !important;
         max-width: 220px !important;
         height: auto !important;
         margin: 0 auto;
+        display: block;
     }
 </style>
 </head>
@@ -293,7 +294,7 @@
                 
                 <div id="xenderQrContainer" class="hidden flex flex-col items-center w-full">
                     <p class="font-bold text-slate-800 break-all mb-2" id="xenderFileName"></p>
-                    <div class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcode"></div>
+                    <canvas class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcode"></canvas>
                     <div class="mt-4 flex flex-col items-center gap-2">
                         <button id="copyOfferBtn" onclick="copyXenderCode('offer')" class="text-indigo-600 font-bold text-sm bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2 hidden">
                             <span class="material-symbols-outlined text-sm">content_copy</span> Copy Offer Code
@@ -337,7 +338,7 @@
                 <div id="receiveStep2" class="hidden flex flex-col items-center w-full">
                     <p class="font-bold text-indigo-900 mb-2">Offer Accepted!</p>
                     <p class="text-xs text-slate-500 mb-4">Step 2: Let the sender scan this Answer QR</p>
-                    <div class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcodeAnswer"></div>
+                    <canvas class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcodeAnswer"></canvas>
                     <div class="mt-4 flex flex-col items-center gap-2">
                         <button id="copyAnswerBtn" onclick="copyXenderCode('answer')" class="text-indigo-600 font-bold text-sm bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2">
                             <span class="material-symbols-outlined text-sm">content_copy</span> Copy Answer Code
@@ -448,15 +449,12 @@
                     sdp = optimizeSDP(sdp);
                     const compressed = LZString.compressToEncodedURIComponent(sdp);
                     
-                    document.getElementById('qrcode').innerHTML = "";
-                    new QRCode(document.getElementById("qrcode"), {
-                        text: "OFR:" + compressed,
-                        width: 512, height: 512, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+                    new QRious({
+                        element: document.getElementById("qrcode"),
+                        value: "OFR:" + compressed,
+                        size: 512,
+                        level: 'M'
                     });
-                    setTimeout(() => {
-                        const img = document.querySelector('#qrcode img');
-                        if(img) img.removeAttribute('title');
-                    }, 100);
                     
                     document.getElementById('xenderSendStatus').textContent = "Show this QR to the receiver";
                     document.getElementById('senderScanBtn').classList.remove('hidden');
@@ -562,15 +560,13 @@
                 answerSdp = optimizeSDP(answerSdp);
                 const compressed = LZString.compressToEncodedURIComponent(answerSdp);
                 
-                document.getElementById('qrcodeAnswer').innerHTML = "";
-                new QRCode(document.getElementById("qrcodeAnswer"), {
-                    text: "ANS:" + compressed,
-                    width: 512, height: 512, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.M
+                new QRious({
+                    element: document.getElementById("qrcodeAnswer"),
+                    value: "ANS:" + compressed,
+                    size: 512,
+                    level: 'M'
                 });
-                setTimeout(() => {
-                    const img = document.querySelector('#qrcodeAnswer img');
-                    if(img) img.removeAttribute('title');
-                }, 100);
+                
                 document.getElementById('xenderReceiveStatus').textContent = "Show this to the sender to connect!";
             }
         };
