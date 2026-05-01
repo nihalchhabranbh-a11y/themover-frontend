@@ -169,11 +169,11 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 <div id="sidebar">
     <div class="brand">🚀 TheMover <span class="badge">v2</span></div>
     
-    <div class="ws-pill" onclick="renameWorkspace()">
+    <div class="ws-pill" onclick="copyInvite()" title="Click to copy invite link">
         <div class="ws-avatar" id="ws-avatar-initial">W</div>
         <div class="ws-info">
             <div class="ws-name" id="ws-name-display">Workspace</div>
-            <div class="ws-status"><div class="dot"></div> Online</div>
+            <div class="ws-status"><div class="dot"></div> Code: <span id="ws-code-display" style="font-weight:700; letter-spacing:2px; color:var(--primary)">------</span></div>
         </div>
     </div>
     
@@ -203,7 +203,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <div class="header">
         <div class="breadcrumb" id="header-breadcrumb">Workspace <span>/ Files</span></div>
         <div class="header-actions">
-            <button class="btn-outline" onclick="copyInvite()">Invite</button>
+            <button class="btn-outline" id="invite-btn" onclick="copyInvite()">📋 Copy Code</button>
         </div>
     </div>
     
@@ -359,7 +359,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             userName = localStorage.getItem('user_name') || '';
             if (!userName) { userName = prompt('Your display name:') || 'User' + (Math.random() * 1000 | 0); localStorage.setItem('user_name', userName); }
             const nameEl = document.getElementById('ws-name-display'); if (nameEl) nameEl.textContent = wsName;
-            const codeEl = document.getElementById('ws-code'); if (codeEl) codeEl.textContent = 'Code: ' + wsCode;
+            const codeEl = document.getElementById('ws-code-display'); if (codeEl) codeEl.textContent = wsCode;
             const avatarEl = document.getElementById('ws-avatar-initial'); if (avatarEl) avatarEl.textContent = wsName.charAt(0).toUpperCase();
             const uNameEl = document.getElementById('user-name-display'); if (uNameEl) uNameEl.textContent = userName;
             const uAvatarEl = document.getElementById('user-avatar-initial'); if (uAvatarEl) uAvatarEl.textContent = userName.charAt(0).toUpperCase();
@@ -375,6 +375,16 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         });
 
         function leaveWorkspace() { localStorage.removeItem('ws_code'); localStorage.removeItem('ws_name'); location.href = '/workspace.html'; }
+
+        function copyInvite() {
+            const link = `${location.origin}/workspace.html?join=${wsCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const btn = document.getElementById('invite-btn');
+                if (btn) { const prev = btn.textContent; btn.textContent = '✅ Copied!'; setTimeout(() => btn.textContent = prev, 2000); }
+            }).catch(() => {
+                prompt('Share this invite link with your friend:', `${location.origin}/workspace.html?join=${wsCode}`);
+            });
+        }
 
         // ── Navigation ──────────────────────────────────────────────────────────────
         const TABS = ['files', 'chat', 'meet', 'members'];
