@@ -319,7 +319,7 @@
                     <button id="senderScanBtn" onclick="startSenderScanner()" class="mt-4 bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hidden">
                         <span class="material-symbols-outlined">qr_code_scanner</span> Step 2: Scan Receiver
                     </button>
-                    <div id="sender-qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative hidden mt-4 flex items-center justify-center shadow-inner"></div>
+                    <div id="sender-qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative mt-4 shadow-inner" style="display:none;"></div>
                 </div>
             </div>
 
@@ -399,7 +399,13 @@
 
     function closeXenderMode() {
         document.getElementById('xenderModal').classList.add('hidden');
-        if(html5QrcodeScanner) html5QrcodeScanner.stop().catch(e => {});
+        if(html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(e => {});
+            html5QrcodeScanner = null;
+            // Clear injected scanner UI so re-open always gets a clean container
+            document.getElementById('qr-reader').innerHTML = '';
+            document.getElementById('sender-qr-reader').innerHTML = '';
+        }
         if(xenderPeer) xenderPeer.close();
         document.getElementById('xenderQrContainer').classList.add('hidden');
         document.getElementById('receiveStep2').classList.add('hidden');
@@ -414,14 +420,20 @@
         document.getElementById('xenderReceiveView').classList.toggle('hidden', tab !== 'receive');
         document.getElementById('xenderTransferView').classList.add('hidden');
         
-        if(html5QrcodeScanner) html5QrcodeScanner.stop().catch(e=>{});
+        // Stop and fully reset scanner when switching tabs
+        if(html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(e=>{});
+            html5QrcodeScanner = null;
+            document.getElementById('qr-reader').innerHTML = '';
+            document.getElementById('sender-qr-reader').innerHTML = '';
+        }
         if(tab === 'receive') {
             document.getElementById('scanBtn').classList.remove('hidden');
             document.getElementById('receiveStep1').classList.remove('hidden');
             document.getElementById('receiveStep2').classList.add('hidden');
         } else {
             document.getElementById('senderScanBtn').classList.remove('hidden');
-            document.getElementById('sender-qr-reader').classList.add('hidden');
+            document.getElementById('sender-qr-reader').style.display = 'none';
         }
     }
 
@@ -449,7 +461,8 @@
             xenderPeer = new RTCPeerConnection(rtcConfig);
             xenderDataChannel = xenderPeer.createDataChannel('flashShare');
             xenderDataChannel.binaryType = 'arraybuffer';
-            xenderDataChannel.bufferedAmountLowThreshold = 512 * 1024; // Keep buffer full for max speed!
+            // Threshold must be <= chunkSize so drain fires promptly
+            xenderDataChannel.bufferedAmountLowThreshold = 64 * 1024;
 
             xenderDataChannel.onopen = startSendingFile;
             
@@ -464,7 +477,8 @@
                         element: document.getElementById("qrcode"),
                         value: "OFR:" + compressed,
                         size: 512,
-                        level: 'M'
+                        level: 'L',
+                        padding: 25
                     });
                     
                     document.getElementById('xenderSendStatus').textContent = "Show this QR to the receiver";
@@ -480,59 +494,83 @@
 
     function startSenderScanner() {
         document.getElementById('senderScanBtn').classList.add('hidden');
-        document.getElementById('sender-qr-reader').classList.remove('hidden');
+        // Use style.display to avoid hidden+flex Tailwind conflict
+        const readerEl = document.getElementById('sender-qr-reader');
+        readerEl.innerHTML = ''; // clear any leftover scanner UI
+        readerEl.style.display = 'block';
         
         html5QrcodeScanner = new Html5Qrcode("sender-qr-reader");
         html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10 },
             async (decodedText) => {
                 if(decodedText.startsWith("ANS:")) {
-                    html5QrcodeScanner.stop();
+                    html5QrcodeScanner.stop().then(() => { html5QrcodeScanner = null; }).catch(e => {});
                     const sdp = LZString.decompressFromEncodedURIComponent(decodedText.substring(4));
                     document.getElementById('xenderSendStatus').textContent = "Answer scanned! Connecting...";
                     await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: sdp}));
                 }
             }, (err) => {}
         ).catch(err => {
-            alert("Camera access denied.");
+            alert("Camera access denied. Please allow camera permission and try again.");
+            html5QrcodeScanner = null;
             document.getElementById('senderScanBtn').classList.remove('hidden');
+            readerEl.style.display = 'none';
         });
     }
 
     function startSendingFile() {
         showXenderTransferUI();
         document.getElementById('xenderTransferDetails').textContent = "Sending: " + xenderFile.name;
-        
-        const chunkSize = 64 * 1024;
+
+        const CHUNK_SIZE = 64 * 1024; // 64 KB
         let offset = 0;
+
+        // Send metadata header first
         xenderDataChannel.send(JSON.stringify({ type: 'meta', name: xenderFile.name, size: xenderFile.size }));
 
-        const reader = new FileReader();
-        reader.onload = e => {
-            xenderDataChannel.send(e.target.result);
-            offset += e.target.result.byteLength;
-            let progress = Math.min(100, Math.round((offset / xenderFile.size) * 100));
-            document.getElementById('xenderProgressBar').style.width = progress + '%';
-            document.getElementById('xenderProgressText').textContent = progress + '%';
-            
-            const sendNext = () => {
-                if (offset < xenderFile.size) readSlice();
-                else {
-                    xenderDataChannel.send(JSON.stringify({ type: 'eof' }));
-                    document.getElementById('xenderTransferDetails').textContent = "Sent successfully!";
+        // Promise that resolves as soon as the data channel buffer drains below threshold
+        function waitForDrain() {
+            return new Promise(resolve => {
+                if (xenderDataChannel.bufferedAmount <= xenderDataChannel.bufferedAmountLowThreshold) {
+                    resolve();
+                } else {
+                    xenderDataChannel.onbufferedamountlow = () => {
+                        xenderDataChannel.onbufferedamountlow = null;
+                        resolve();
+                    };
                 }
-            };
+            });
+        }
 
-            if (xenderDataChannel.bufferedAmount > xenderDataChannel.bufferedAmountLowThreshold) {
-                xenderDataChannel.onbufferedamountlow = sendNext;
-            } else {
-                sendNext();
+        // Read one slice from disk as an ArrayBuffer
+        function readSlice(start) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(xenderFile.slice(start, start + CHUNK_SIZE));
+            });
+        }
+
+        // Main async send loop — waits for drain before each chunk
+        async function sendChunks() {
+            while (offset < xenderFile.size) {
+                await waitForDrain();
+                const buffer = await readSlice(offset);
+                xenderDataChannel.send(buffer);
+                offset += buffer.byteLength;
+                const progress = Math.min(100, Math.round((offset / xenderFile.size) * 100));
+                document.getElementById('xenderProgressBar').style.width = progress + '%';
+                document.getElementById('xenderProgressText').textContent = progress + '%';
             }
-        };
-        const readSlice = () => {
-            const slice = xenderFile.slice(offset, offset + chunkSize);
-            reader.readAsArrayBuffer(slice);
-        };
-        readSlice();
+            // Signal end-of-file
+            xenderDataChannel.send(JSON.stringify({ type: 'eof' }));
+            document.getElementById('xenderTransferDetails').textContent = "Sent successfully! ✅";
+        }
+
+        sendChunks().catch(err => {
+            console.error("Send error:", err);
+            document.getElementById('xenderTransferDetails').textContent = "Send failed. Please retry.";
+        });
     }
 
 
@@ -543,17 +581,22 @@
 
     function startReceiverScanner() {
         document.getElementById('scanBtn').classList.add('hidden');
+        // Always clear container before injecting new scanner instance
+        const readerEl = document.getElementById('qr-reader');
+        readerEl.innerHTML = '';
+        
         html5QrcodeScanner = new Html5Qrcode("qr-reader");
         html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10 },
             async (decodedText) => {
                 if(decodedText.startsWith("OFR:")) {
-                    html5QrcodeScanner.stop();
+                    html5QrcodeScanner.stop().then(() => { html5QrcodeScanner = null; }).catch(e => {});
                     const sdp = LZString.decompressFromEncodedURIComponent(decodedText.substring(4));
                     handleSenderOffer(sdp);
                 }
             }, (err) => {}
         ).catch(err => {
-            alert("Camera access denied.");
+            alert("Camera access denied. Please allow camera permission and try again.");
+            html5QrcodeScanner = null;
             document.getElementById('scanBtn').classList.remove('hidden');
         });
     }
@@ -575,7 +618,8 @@
                     element: document.getElementById("qrcodeAnswer"),
                     value: "ANS:" + compressed,
                     size: 512,
-                    level: 'M'
+                    level: 'L',
+                    padding: 25
                 });
                 
                 document.getElementById('xenderReceiveStatus').textContent = "Show this to the sender to connect!";
