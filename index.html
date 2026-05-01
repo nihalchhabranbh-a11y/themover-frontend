@@ -604,7 +604,11 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }]
         };
 
-        function setVideoFilter(f) { videoFilter = f; }
+        function setVideoFilter(f) { 
+            videoFilter = f; 
+            const localVid = document.getElementById('vid-local');
+            if (localVid) localVid.style.transform = f === '360' ? 'none' : 'scaleX(-1)';
+        }
         function toggleAR() { 
             arEnabled = !arEnabled; 
             document.getElementById('btn-ar').style.background = arEnabled ? 'var(--primary)' : 'rgba(255,255,255,.1)';
@@ -753,7 +757,17 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                         
                                         // 3D Spatial Drawing mapping
                                         if (videoFilter === '360' && camera360 && drawingGroup3D) {
-                                            const ndcX = (indexTip.x * 2) - 1;
+                                            const pointerX = 1.0 - indexTip.x; // Invert X for natural mirroring
+                                            
+                                            // Draw Laser Pointer
+                                            ctx.beginPath();
+                                            ctx.arc(pointerX * canvas.width, indexTip.y * canvas.height, 8, 0, 2*Math.PI);
+                                            ctx.fillStyle = neonColor;
+                                            ctx.fill();
+                                            ctx.shadowBlur = 20;
+                                            ctx.shadowColor = neonColor;
+                                            
+                                            const ndcX = (pointerX * 2) - 1;
                                             const ndcY = -(indexTip.y * 2) + 1;
                                             const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
                                             vec.unproject(camera360);
@@ -770,6 +784,15 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                         }
                                     } else {
                                         currentPath = null; // stop drawing line segment
+                                        
+                                        // Still draw laser pointer if in 360 mode so they can find their hand
+                                        if (videoFilter === '360') {
+                                            const pointerX = 1.0 - indexTip.x;
+                                            ctx.beginPath();
+                                            ctx.arc(pointerX * canvas.width, indexTip.y * canvas.height, 5, 0, 2*Math.PI);
+                                            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                                            ctx.fill();
+                                        }
                                     }
                                     
                                     let emoji = '';
@@ -780,11 +803,13 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                     // Raised hand
                                     else if (indexTip.y < indexPip.y && middleTip.y < middlePip.y && thumbTip.y < thumbPip.y && ringTip.y < ringPip.y) emoji = '✋';
                                     
+                                    
                                     if (emoji) {
+                                        let emojiX = videoFilter === '360' ? 1.0 - indexTip.x : indexTip.x;
                                         ctx.font = '80px sans-serif';
                                         ctx.textAlign = 'center';
                                         ctx.textBaseline = 'middle';
-                                        ctx.fillText(emoji, indexTip.x * canvas.width, indexTip.y * canvas.height - 60);
+                                        ctx.fillText(emoji, emojiX * canvas.width, indexTip.y * canvas.height - 60);
                                     }
                                 }
                             } catch(e) {}
@@ -877,7 +902,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     rcBtnHtml = `<button class="dl-btn rc-btn" style="position:absolute; top:8px; right:8px; z-index:10; background:rgba(0,0,0,0.6); padding:4px 8px; font-size:11px;" onclick="toggleRC('${sid}')">🎮 Take Control</button>`;
                 }
                 
-                tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="pointer-events: ${local ? 'none' : 'auto'}; outline:none;" tabindex="0"></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>${rcBtnHtml}`;
+                tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="pointer-events: ${local ? 'none' : 'auto'}; outline:none; ${local && videoFilter !== '360' ? 'transform: scaleX(-1);' : ''}" tabindex="0"></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>${rcBtnHtml}`;
                 g.appendChild(tile); 
                 
                 if (!local) {
