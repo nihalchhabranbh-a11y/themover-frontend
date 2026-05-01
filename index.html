@@ -317,6 +317,7 @@
 
 <script>
     const API_BASE = "https://themover-3r8d.onrender.com/api";
+    const socket = io("https://themover-3r8d.onrender.com");
     let guestAuth = "";
     let currentGroup = localStorage.getItem('themover_group') || 'public';
 
@@ -572,7 +573,6 @@
     });
 
     // --- Smart Transfer Logic (Socket.io Relay) ---
-    const socket = io("https://themover-3r8d.onrender.com");
     let hostedFiles = {};
     const MAX_RELAY_SIZE_MB = 50; // Relay files up to 50MB, larger go direct to cloud
 
