@@ -236,7 +236,7 @@
       const res = await fetch(`${API_BASE}/workspace/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name: name, admin: userName })
       });
       const data = await res.json();
       if (data.error) { err.textContent = data.error; err.style.display = 'block'; return; }
