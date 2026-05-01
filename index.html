@@ -609,6 +609,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         async function onCallAnswer(d) { await peers[d.sender]?.setRemoteDescription(new RTCSessionDescription(d.answer)); }
         async function onCallIce(d) { try { await peers[d.sender]?.addIceCandidate(new RTCIceCandidate(d.candidate)); } catch (e) { } }
         function onPeerLeft(d) { peers[d.sid]?.close(); delete peers[d.sid]; document.getElementById('vtile-' + d.sid)?.remove(); updateGrid(); }
+        let rcActive = false;
+        
         function addVideoTile(sid, name, stream, local) {
             const g = document.getElementById('video-grid');
             let tile = document.getElementById('vtile-' + sid);
@@ -616,8 +618,44 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 tile = document.createElement('div'); 
                 tile.className = 'video-tile'; 
                 tile.id = 'vtile-' + sid; 
-                tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>`;
+                tile.style.position = 'relative';
+                
+                let rcBtnHtml = '';
+                if (!local) {
+                    rcBtnHtml = `<button class="dl-btn rc-btn" style="position:absolute; top:8px; right:8px; z-index:10; background:rgba(0,0,0,0.6); padding:4px 8px; font-size:11px;" onclick="toggleRC('${sid}')">🎮 Take Control</button>`;
+                }
+                
+                tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="pointer-events: ${local ? 'none' : 'auto'}; outline:none;" tabindex="0"></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>${rcBtnHtml}`;
                 g.appendChild(tile); 
+                
+                if (!local) {
+                    const vid = document.getElementById('vid-' + sid);
+                    // Remote Control Event Listeners
+                    vid.addEventListener('mousemove', e => {
+                        if (!rcActive || document.activeElement !== vid) return;
+                        const x = e.offsetX / vid.clientWidth;
+                        const y = e.offsetY / vid.clientHeight;
+                        socket.emit('remote_control', { code: wsCode, target: sid, action: 'mousemove', x, y });
+                    });
+                    vid.addEventListener('mousedown', e => {
+                        if (!rcActive) return;
+                        vid.focus();
+                        const x = e.offsetX / vid.clientWidth;
+                        const y = e.offsetY / vid.clientHeight;
+                        socket.emit('remote_control', { code: wsCode, target: sid, action: 'mousedown', x, y });
+                    });
+                    vid.addEventListener('mouseup', e => {
+                        if (!rcActive || document.activeElement !== vid) return;
+                        const x = e.offsetX / vid.clientWidth;
+                        const y = e.offsetY / vid.clientHeight;
+                        socket.emit('remote_control', { code: wsCode, target: sid, action: 'mouseup', x, y });
+                    });
+                    vid.addEventListener('keydown', e => {
+                        if (!rcActive || document.activeElement !== vid) return;
+                        e.preventDefault();
+                        socket.emit('remote_control', { code: wsCode, target: sid, action: 'keydown', key: e.key });
+                    });
+                }
             }
             const vid = document.getElementById('vid-' + sid);
             if (vid.srcObject !== stream) {
@@ -625,6 +663,19 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 vid.play().catch(e => console.warn('Autoplay prevented:', e));
             }
             updateGrid();
+        }
+        
+        function toggleRC(sid) {
+            rcActive = !rcActive;
+            const btn = document.querySelector(`#vtile-${sid} .rc-btn`);
+            if (rcActive) {
+                btn.style.background = 'var(--primary)';
+                btn.textContent = '🛑 Stop Control';
+                document.getElementById('vid-' + sid).focus();
+            } else {
+                btn.style.background = 'rgba(0,0,0,0.6)';
+                btn.textContent = '🎮 Take Control';
+            }
         }
         function updateGrid() {
             const g = document.getElementById('video-grid'), n = g.children.length;
