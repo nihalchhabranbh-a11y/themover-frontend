@@ -268,6 +268,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         <option value="360">🌌 360° Virtual Room</option>
                     </optgroup>
                 </select>
+                <button class="ctrl-btn" id="btn-pencil" onclick="togglePencil()" style="font-size:16px;" title="Manual Pencil Mode (Draw with Mouse/Touch)">✏️</button>
                 <button class="ctrl-btn" id="btn-ar" onclick="toggleAR()" style="font-size:16px;" title="Enable AR Emojis & Neon Drawing">✌️</button>
                 <input type="color" id="ar-color" value="#ff00ff" style="width:30px; height:30px; padding:0; border:none; border-radius:50%; cursor:pointer; background:transparent;" onchange="setNeonColor(this.value)" title="Neon Pen Color">
                 <button class="ctrl-btn" onclick="clearDrawing()" style="font-size:16px;" title="Clear Drawing">🧹</button>
@@ -609,6 +610,13 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const localVid = document.getElementById('vid-local');
             if (localVid) localVid.style.transform = f === '360' ? 'none' : 'scaleX(-1)';
         }
+        
+        let pencilMode = false;
+        function togglePencil() {
+            pencilMode = !pencilMode;
+            document.getElementById('btn-pencil').style.background = pencilMode ? 'var(--primary)' : 'rgba(255,255,255,.1)';
+        }
+        
         function toggleAR() { 
             arEnabled = !arEnabled; 
             document.getElementById('btn-ar').style.background = arEnabled ? 'var(--primary)' : 'rgba(255,255,255,.1)';
@@ -665,26 +673,80 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     
                     // Device Orientation
                     window.addEventListener("deviceorientation", function(event) {
-                        if (videoFilter === '360' && event.alpha != null) {
+                        if (videoFilter === '360' && event.alpha != null && !pencilMode) {
                             lon = event.alpha;
                             lat = event.beta - 90;
                         }
                     }, true);
                     
-                    // Mouse dragging
+                    // Mouse dragging & Pencil Drawing
+                    let isPencilDrawing = false;
+                    let pencilPath = null;
+                    
+                    function getCanvasPoint(e) {
+                        const localVid = document.getElementById('vid-local');
+                        if (!localVid) return null;
+                        const rect = localVid.getBoundingClientRect();
+                        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return null;
+                        
+                        let x = (e.clientX - rect.left) / rect.width;
+                        const y = (e.clientY - rect.top) / rect.height;
+                        
+                        if (localVid.style.transform.includes('scaleX(-1)')) x = 1.0 - x;
+                        return { x, y };
+                    }
+                    
+                    function addPencilPoint(pt) {
+                        if (!pencilPath) return;
+                        pencilPath.points.push({ x: pt.x * canvas.width, y: pt.y * canvas.height });
+                        
+                        if (videoFilter === '360' && camera360 && drawingGroup3D) {
+                            const ndcX = (pt.x * 2) - 1;
+                            const ndcY = -(pt.y * 2) + 1;
+                            const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+                            vec.unproject(camera360);
+                            vec.sub(camera360.position).normalize();
+                            const pos = camera360.position.clone().add(vec.multiplyScalar(200));
+                            
+                            const geo = new THREE.SphereGeometry(3, 8, 8);
+                            const mat = new THREE.MeshBasicMaterial({ color: neonColor });
+                            const mesh = new THREE.Mesh(geo, mat);
+                            mesh.position.copy(pos);
+                            drawingGroup3D.add(mesh);
+                        }
+                    }
+
                     window.addEventListener('pointerdown', (e) => {
-                        if (videoFilter !== '360') return;
-                        isDragging360 = true;
-                        onPointerDownX = e.clientX; onPointerDownY = e.clientY;
-                        onPointerDownLon = lon; onPointerDownLat = lat;
+                        if (pencilMode) {
+                            const pt = getCanvasPoint(e);
+                            if (pt) {
+                                isPencilDrawing = true;
+                                pencilPath = { color: neonColor, points: [] };
+                                drawingPaths.push(pencilPath);
+                                addPencilPoint(pt);
+                            }
+                        } else if (videoFilter === '360') {
+                            isDragging360 = true;
+                            onPointerDownX = e.clientX; onPointerDownY = e.clientY;
+                            onPointerDownLon = lon; onPointerDownLat = lat;
+                        }
                     });
+                    
                     window.addEventListener('pointermove', (e) => {
-                        if (isDragging360 && videoFilter === '360') {
+                        if (pencilMode && isPencilDrawing) {
+                            const pt = getCanvasPoint(e);
+                            if (pt) addPencilPoint(pt);
+                        } else if (isDragging360 && videoFilter === '360') {
                             lon = (onPointerDownX - e.clientX) * 0.1 + onPointerDownLon;
                             lat = (e.clientY - onPointerDownY) * 0.1 + onPointerDownLat;
                         }
                     });
-                    window.addEventListener('pointerup', () => { isDragging360 = false; });
+                    
+                    window.addEventListener('pointerup', () => { 
+                        isDragging360 = false; 
+                        isPencilDrawing = false;
+                        pencilPath = null;
+                    });
                 }
                 
                 // Start processing loop
