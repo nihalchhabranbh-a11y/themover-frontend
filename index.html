@@ -11,6 +11,7 @@
 <!-- QR Code Libraries for Local Share -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -274,27 +275,41 @@
             </div>
 
             <!-- Send View -->
-            <div id="xenderSendView" class="w-full flex flex-col items-center text-center">
-                <p class="text-sm text-slate-500 mb-4">Select a file to generate a QR Code</p>
+            <div id="xenderSendView" class="w-full flex flex-col items-center text-center pb-10">
+                <p class="text-sm text-slate-500 mb-4">Select a file to generate an Offer</p>
                 <input type="file" id="xenderFileInput" class="hidden" onchange="xenderFileSelected(this)">
-                <button onclick="document.getElementById('xenderFileInput').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 mb-6 shadow-md shadow-indigo-200">
+                <button id="xenderChooseBtn" onclick="document.getElementById('xenderFileInput').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 mb-6 shadow-md shadow-indigo-200">
                     <span class="material-symbols-outlined">add_circle</span> Choose File
                 </button>
                 
-                <div id="xenderQrContainer" class="hidden flex flex-col items-center">
+                <div id="xenderQrContainer" class="hidden flex flex-col items-center w-full">
+                    <p class="font-bold text-slate-800 break-all mb-2" id="xenderFileName"></p>
                     <div class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcode"></div>
-                    <p class="mt-4 font-bold text-slate-800 break-all" id="xenderFileName"></p>
-                    <p class="text-xs text-indigo-500 font-semibold mt-1 animate-pulse">Waiting for receiver to scan...</p>
+                    <p class="text-xs text-indigo-500 font-semibold mt-2" id="xenderSendStatus">Generating Offer...</p>
+                    
+                    <button id="senderScanBtn" onclick="startSenderScanner()" class="mt-6 bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hidden">
+                        <span class="material-symbols-outlined">qr_code_scanner</span> Step 2: Scan Receiver
+                    </button>
+                    <div id="sender-qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative hidden mt-4 flex items-center justify-center shadow-inner"></div>
                 </div>
             </div>
 
             <!-- Receive View -->
-            <div id="xenderReceiveView" class="w-full hidden flex flex-col items-center text-center h-full">
-                <p class="text-sm text-slate-500 mb-4">Scan the sender's QR code</p>
-                <div id="qr-reader" class="w-full max-w-[300px] min-h-[300px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative flex items-center justify-center shadow-inner"></div>
-                <button id="scanBtn" onclick="startScanner()" class="mt-6 bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md">
-                    <span class="material-symbols-outlined">qr_code_scanner</span> Start Scanner
-                </button>
+            <div id="xenderReceiveView" class="w-full hidden flex flex-col items-center text-center h-full pb-10">
+                <div id="receiveStep1">
+                    <p class="text-sm text-slate-500 mb-4">Step 1: Scan the sender's Offer QR</p>
+                    <div id="qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative flex items-center justify-center shadow-inner mx-auto"></div>
+                    <button id="scanBtn" onclick="startReceiverScanner()" class="mt-6 mx-auto bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md">
+                        <span class="material-symbols-outlined">qr_code_scanner</span> Scan Offer
+                    </button>
+                </div>
+                
+                <div id="receiveStep2" class="hidden flex flex-col items-center w-full">
+                    <p class="font-bold text-indigo-900 mb-2">Offer Accepted!</p>
+                    <p class="text-xs text-slate-500 mb-4">Step 2: Let the sender scan this Answer QR</p>
+                    <div class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcodeAnswer"></div>
+                    <p class="text-xs text-indigo-500 font-semibold mt-2" id="xenderReceiveStatus">Waiting for connection...</p>
+                </div>
             </div>
             
             <!-- Transfer Status View -->
@@ -304,7 +319,7 @@
                     <div class="absolute inset-0 rounded-full border-4 border-indigo-300 animate-ping opacity-50"></div>
                 </div>
                 <h3 class="font-bold text-xl mb-1 text-slate-800">Transferring...</h3>
-                <p class="text-slate-500 text-sm mb-6" id="xenderTransferDetails">Connecting directly over WiFi</p>
+                <p class="text-slate-500 text-sm mb-6" id="xenderTransferDetails">Direct Flash Speed Link Active</p>
                 
                 <div class="w-full bg-slate-100 rounded-full h-3 mb-2 overflow-hidden shadow-inner">
                     <div id="xenderProgressBar" class="bg-indigo-500 h-3 rounded-full transition-all duration-300 shadow-sm" style="width: 0%"></div>
@@ -321,12 +336,14 @@
     let guestAuth = "";
     let currentGroup = localStorage.getItem('themover_group') || 'public';
 
-    // --- Xender Mode (Flash Share) Logic ---
+    // --- Serverless Xender Mode (Flash Share) Logic ---
     let html5QrcodeScanner = null;
     let xenderFile = null;
-    let xenderRoom = null;
     let xenderPeer = null;
     let xenderDataChannel = null;
+    
+    // Config for Server Reflexive candidates (needed for local router Hairpinning)
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     function openXenderMode() {
         document.getElementById('xenderModal').classList.remove('hidden');
@@ -335,11 +352,11 @@
 
     function closeXenderMode() {
         document.getElementById('xenderModal').classList.add('hidden');
-        if(html5QrcodeScanner) {
-            html5QrcodeScanner.stop().catch(e => console.error(e));
-        }
+        if(html5QrcodeScanner) html5QrcodeScanner.stop().catch(e => {});
         if(xenderPeer) xenderPeer.close();
         document.getElementById('xenderQrContainer').classList.add('hidden');
+        document.getElementById('receiveStep2').classList.add('hidden');
+        document.getElementById('receiveStep1').classList.remove('hidden');
     }
 
     function switchXenderTab(tab) {
@@ -350,53 +367,193 @@
         document.getElementById('xenderReceiveView').classList.toggle('hidden', tab !== 'receive');
         document.getElementById('xenderTransferView').classList.add('hidden');
         
-        if (tab === 'receive') {
-            if(html5QrcodeScanner) html5QrcodeScanner.stop().catch(e=>{});
+        if(html5QrcodeScanner) html5QrcodeScanner.stop().catch(e=>{});
+        if(tab === 'receive') {
             document.getElementById('scanBtn').classList.remove('hidden');
+            document.getElementById('receiveStep1').classList.remove('hidden');
+            document.getElementById('receiveStep2').classList.add('hidden');
+        } else {
+            document.getElementById('senderScanBtn').classList.remove('hidden');
+            document.getElementById('sender-qr-reader').classList.add('hidden');
         }
     }
 
+    // ========== SENDER LOGIC ==========
     function xenderFileSelected(input) {
         if(input.files && input.files.length > 0) {
             xenderFile = input.files[0];
             document.getElementById('xenderFileName').textContent = xenderFile.name;
             document.getElementById('xenderQrContainer').classList.remove('hidden');
+            document.getElementById('xenderSendStatus').textContent = "Gathering local network routes...";
+            document.getElementById('senderScanBtn').classList.add('hidden');
+            document.getElementById('xenderChooseBtn').classList.add('hidden');
             
-            // Generate unique room ID
-            xenderRoom = 'room_' + Math.random().toString(36).substr(2, 9);
+            xenderPeer = new RTCPeerConnection(rtcConfig);
+            xenderDataChannel = xenderPeer.createDataChannel('flashShare');
+            xenderDataChannel.binaryType = 'arraybuffer';
+            xenderDataChannel.bufferedAmountLowThreshold = 512 * 1024; // Keep buffer full for max speed!
+
+            xenderDataChannel.onopen = startSendingFile;
             
-            // Generate QR Code
-            document.getElementById('qrcode').innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), {
-                text: JSON.stringify({ room: xenderRoom }),
-                width: 200, height: 200, colorDark : "#312e81", colorLight : "#ffffff"
-            });
-            
-            // Join signaling room
-            socket.emit('xender_host', { room: xenderRoom });
+            xenderPeer.onicecandidate = e => {
+                if (!e.candidate) {
+                    // ICE Gathering Complete! Generate the QR Code.
+                    const sdp = xenderPeer.localDescription.sdp;
+                    const compressed = LZString.compressToEncodedURIComponent(sdp);
+                    
+                    document.getElementById('qrcode').innerHTML = "";
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: "OFR:" + compressed,
+                        width: 250, height: 250, colorDark : "#312e81", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+                    });
+                    
+                    document.getElementById('xenderSendStatus').textContent = "Show this QR to the receiver";
+                    document.getElementById('senderScanBtn').classList.remove('hidden');
+                }
+            };
+
+            xenderPeer.createOffer().then(offer => xenderPeer.setLocalDescription(offer));
         }
     }
 
-    function startScanner() {
+    function startSenderScanner() {
+        document.getElementById('senderScanBtn').classList.add('hidden');
+        document.getElementById('sender-qr-reader').classList.remove('hidden');
+        
+        html5QrcodeScanner = new Html5Qrcode("sender-qr-reader");
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+                if(decodedText.startsWith("ANS:")) {
+                    html5QrcodeScanner.stop();
+                    const sdp = LZString.decompressFromEncodedURIComponent(decodedText.substring(4));
+                    document.getElementById('xenderSendStatus').textContent = "Answer scanned! Connecting...";
+                    await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: sdp}));
+                }
+            }, (err) => {}
+        ).catch(err => {
+            alert("Camera access denied.");
+            document.getElementById('senderScanBtn').classList.remove('hidden');
+        });
+    }
+
+    function startSendingFile() {
+        showXenderTransferUI();
+        document.getElementById('xenderTransferDetails').textContent = "Sending: " + xenderFile.name;
+        
+        const chunkSize = 64 * 1024;
+        let offset = 0;
+        xenderDataChannel.send(JSON.stringify({ type: 'meta', name: xenderFile.name, size: xenderFile.size }));
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            xenderDataChannel.send(e.target.result);
+            offset += e.target.result.byteLength;
+            let progress = Math.min(100, Math.round((offset / xenderFile.size) * 100));
+            document.getElementById('xenderProgressBar').style.width = progress + '%';
+            document.getElementById('xenderProgressText').textContent = progress + '%';
+            
+            const sendNext = () => {
+                if (offset < xenderFile.size) readSlice();
+                else {
+                    xenderDataChannel.send(JSON.stringify({ type: 'eof' }));
+                    document.getElementById('xenderTransferDetails').textContent = "Sent successfully!";
+                }
+            };
+
+            if (xenderDataChannel.bufferedAmount > xenderDataChannel.bufferedAmountLowThreshold) {
+                xenderDataChannel.onbufferedamountlow = sendNext;
+            } else {
+                sendNext();
+            }
+        };
+        const readSlice = () => {
+            const slice = xenderFile.slice(offset, offset + chunkSize);
+            reader.readAsArrayBuffer(slice);
+        };
+        readSlice();
+    }
+
+
+    // ========== RECEIVER LOGIC ==========
+    let incomingXenderChunks = [];
+    let incomingXenderMeta = null;
+    let receivedBytes = 0;
+
+    function startReceiverScanner() {
         document.getElementById('scanBtn').classList.add('hidden');
         html5QrcodeScanner = new Html5Qrcode("qr-reader");
-        html5QrcodeScanner.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText) => {
-                try {
-                    const data = JSON.parse(decodedText);
-                    if(data.room) {
-                        html5QrcodeScanner.stop();
-                        joinXenderRoom(data.room);
-                    }
-                } catch(e) { console.error("Invalid QR", e); }
-            },
-            (error) => {}
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+                if(decodedText.startsWith("OFR:")) {
+                    html5QrcodeScanner.stop();
+                    const sdp = LZString.decompressFromEncodedURIComponent(decodedText.substring(4));
+                    handleSenderOffer(sdp);
+                }
+            }, (err) => {}
         ).catch(err => {
-            alert("Camera access denied. Please check permissions.");
+            alert("Camera access denied.");
             document.getElementById('scanBtn').classList.remove('hidden');
         });
+    }
+
+    async function handleSenderOffer(sdp) {
+        document.getElementById('receiveStep1').classList.add('hidden');
+        document.getElementById('receiveStep2').classList.remove('hidden');
+        document.getElementById('xenderReceiveStatus').textContent = "Generating Answer...";
+
+        xenderPeer = new RTCPeerConnection(rtcConfig);
+        
+        xenderPeer.onicecandidate = e => {
+            if (!e.candidate) {
+                const answerSdp = xenderPeer.localDescription.sdp;
+                const compressed = LZString.compressToEncodedURIComponent(answerSdp);
+                
+                document.getElementById('qrcodeAnswer').innerHTML = "";
+                new QRCode(document.getElementById("qrcodeAnswer"), {
+                    text: "ANS:" + compressed,
+                    width: 250, height: 250, colorDark : "#312e81", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+                });
+                document.getElementById('xenderReceiveStatus').textContent = "Show this to the sender to connect!";
+            }
+        };
+
+        xenderPeer.ondatachannel = e => {
+            const dc = e.channel;
+            dc.binaryType = 'arraybuffer';
+            dc.onmessage = msg => {
+                if (typeof msg.data === 'string') {
+                    const info = JSON.parse(msg.data);
+                    if (info.type === 'meta') {
+                        incomingXenderMeta = info;
+                        incomingXenderChunks = [];
+                        receivedBytes = 0;
+                        showXenderTransferUI();
+                        document.getElementById('xenderTransferDetails').textContent = "Receiving: " + info.name;
+                    } else if (info.type === 'eof') {
+                        document.getElementById('xenderProgressBar').style.width = '100%';
+                        document.getElementById('xenderProgressText').textContent = '100%';
+                        document.getElementById('xenderTransferDetails').textContent = "Download complete!";
+                        const blob = new Blob(incomingXenderChunks);
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = incomingXenderMeta.name;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }
+                } else {
+                    incomingXenderChunks.push(msg.data);
+                    receivedBytes += msg.data.byteLength;
+                    let progress = Math.min(100, Math.round((receivedBytes / incomingXenderMeta.size) * 100));
+                    document.getElementById('xenderProgressBar').style.width = progress + '%';
+                    document.getElementById('xenderProgressText').textContent = progress + '%';
+                }
+            };
+        };
+
+        await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'offer', sdp: sdp}));
+        const answer = await xenderPeer.createAnswer();
+        await xenderPeer.setLocalDescription(answer);
     }
 
     function showXenderTransferUI() {
@@ -406,140 +563,7 @@
         document.getElementById('xenderProgressBar').style.width = '0%';
         document.getElementById('xenderProgressText').textContent = '0%';
     }
-
-    function joinXenderRoom(room) {
-        xenderRoom = room;
-        showXenderTransferUI();
-        document.getElementById('xenderTransferDetails').textContent = "Connecting to sender via WebRTC...";
-        socket.emit('xender_join', { room: xenderRoom });
-    }
-
-    // Both sides handling signals
-    let incomingXenderChunks = [];
-    let incomingXenderMeta = null;
-    let receivedBytes = 0;
-
-    socket.on('xender_joined', async (data) => {
-        // Sender gets this when receiver scans the QR code
-        const target_sid = data.sid;
-        showXenderTransferUI();
-        document.getElementById('xenderTransferDetails').textContent = "Establishing local tunnel...";
-        
-        xenderPeer = new RTCPeerConnection({ iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-        ] });
-        
-        xenderPeer.onicecandidate = e => {
-            if (e.candidate) socket.emit('xender_signal', { room: xenderRoom, target: target_sid, signal: { type: 'ice', candidate: e.candidate }});
-        };
-
-        xenderDataChannel = xenderPeer.createDataChannel('flashShare');
-        xenderDataChannel.binaryType = 'arraybuffer';
-        
-        xenderDataChannel.onopen = () => {
-            document.getElementById('xenderTransferDetails').textContent = "Sending: " + xenderFile.name;
-            const chunkSize = 64 * 1024;
-            let offset = 0;
-            xenderDataChannel.send(JSON.stringify({ type: 'meta', name: xenderFile.name, size: xenderFile.size }));
-
-            const reader = new FileReader();
-            reader.onload = e => {
-                xenderDataChannel.send(e.target.result);
-                offset += e.target.result.byteLength;
-                let progress = Math.min(100, Math.round((offset / xenderFile.size) * 100));
-                document.getElementById('xenderProgressBar').style.width = progress + '%';
-                document.getElementById('xenderProgressText').textContent = progress + '%';
-                
-                const sendNext = () => {
-                    if (offset < xenderFile.size) readSlice();
-                    else {
-                        xenderDataChannel.send(JSON.stringify({ type: 'eof' }));
-                        document.getElementById('xenderTransferDetails').textContent = "Sent successfully!";
-                    }
-                };
-
-                if (xenderDataChannel.bufferedAmount > 1024 * 1024) {
-                    xenderDataChannel.onbufferedamountlow = () => {
-                        xenderDataChannel.onbufferedamountlow = null;
-                        sendNext();
-                    };
-                } else sendNext();
-            };
-            const readSlice = () => {
-                const slice = xenderFile.slice(offset, offset + chunkSize);
-                reader.readAsArrayBuffer(slice);
-            };
-            readSlice();
-        };
-
-        const offer = await xenderPeer.createOffer();
-        await xenderPeer.setLocalDescription(offer);
-        socket.emit('xender_signal', { room: xenderRoom, target: target_sid, signal: { type: 'offer', offer }});
-    });
-
-    socket.on('xender_signal', async (data) => {
-        const signal = data.signal;
-        const sender_sid = data.sender;
-        
-        if(!xenderPeer && signal.type === 'offer') {
-            // Receiver gets the offer
-            xenderPeer = new RTCPeerConnection({ iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ] });
-            
-            xenderPeer.onicecandidate = e => {
-                if (e.candidate) socket.emit('xender_signal', { room: xenderRoom, target: sender_sid, signal: { type: 'ice', candidate: e.candidate }});
-            };
-
-            xenderPeer.ondatachannel = e => {
-                const dc = e.channel;
-                dc.binaryType = 'arraybuffer';
-                
-                dc.onmessage = msg => {
-                    if (typeof msg.data === 'string') {
-                        const info = JSON.parse(msg.data);
-                        if (info.type === 'meta') {
-                            incomingXenderMeta = info;
-                            incomingXenderChunks = [];
-                            receivedBytes = 0;
-                            document.getElementById('xenderTransferDetails').textContent = "Receiving: " + info.name;
-                        } else if (info.type === 'eof') {
-                            document.getElementById('xenderProgressBar').style.width = '100%';
-                            document.getElementById('xenderProgressText').textContent = '100%';
-                            document.getElementById('xenderTransferDetails').textContent = "Download complete!";
-                            const blob = new Blob(incomingXenderChunks);
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = incomingXenderMeta.name;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                        }
-                    } else {
-                        incomingXenderChunks.push(msg.data);
-                        receivedBytes += msg.data.byteLength;
-                        let progress = Math.min(100, Math.round((receivedBytes / incomingXenderMeta.size) * 100));
-                        document.getElementById('xenderProgressBar').style.width = progress + '%';
-                        document.getElementById('xenderProgressText').textContent = progress + '%';
-                    }
-                };
-            };
-            
-            await xenderPeer.setRemoteDescription(new RTCSessionDescription(signal.offer));
-            const answer = await xenderPeer.createAnswer();
-            await xenderPeer.setLocalDescription(answer);
-            socket.emit('xender_signal', { room: xenderRoom, target: sender_sid, signal: { type: 'answer', answer }});
-        } 
-        else if (signal.type === 'answer' && xenderPeer) {
-            await xenderPeer.setRemoteDescription(new RTCSessionDescription(signal.answer));
-        }
-        else if (signal.type === 'ice' && xenderPeer) {
-            await xenderPeer.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(e=>{});
-        }
-    });
-    // --- End Xender Mode Logic ---
+    // --- End Serverless Xender Mode Logic ---
 
     function joinGroup() {
         const code = prompt("Enter Group Code to join (or leave blank for Public Hub):");
