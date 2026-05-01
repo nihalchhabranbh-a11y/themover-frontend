@@ -285,12 +285,25 @@
                 <div id="xenderQrContainer" class="hidden flex flex-col items-center w-full">
                     <p class="font-bold text-slate-800 break-all mb-2" id="xenderFileName"></p>
                     <div class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcode"></div>
-                    <p class="text-xs text-indigo-500 font-semibold mt-2" id="xenderSendStatus">Generating Offer...</p>
+                    <div class="mt-4 flex flex-col items-center gap-2">
+                        <button id="copyOfferBtn" onclick="copyXenderCode('offer')" class="text-indigo-600 font-bold text-sm bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2 hidden">
+                            <span class="material-symbols-outlined text-sm">content_copy</span> Copy Offer Code
+                        </button>
+                        <p class="text-xs text-indigo-500 font-semibold" id="xenderSendStatus">Generating Offer...</p>
+                    </div>
                     
                     <button id="senderScanBtn" onclick="startSenderScanner()" class="mt-6 bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md hidden">
                         <span class="material-symbols-outlined">qr_code_scanner</span> Step 2: Scan Receiver
                     </button>
                     <div id="sender-qr-reader" class="w-full max-w-[250px] min-h-[250px] rounded-2xl overflow-hidden bg-slate-900 border-4 border-slate-800 relative hidden mt-4 flex items-center justify-center shadow-inner"></div>
+                    
+                    <div id="senderManualFallback" class="w-full mt-6 pt-6 border-t border-indigo-100 hidden">
+                        <p class="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">Or Paste Answer Code</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="manualAnswerInput" placeholder="Paste Answer Code..." class="flex-1 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <button onclick="handleManualAnswer()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-700">Connect</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -302,13 +315,26 @@
                     <button id="scanBtn" onclick="startReceiverScanner()" class="mt-6 mx-auto bg-slate-800 hover:bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md">
                         <span class="material-symbols-outlined">qr_code_scanner</span> Scan Offer
                     </button>
+                    
+                    <div class="w-full mt-6 pt-6 border-t border-indigo-100">
+                        <p class="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">Or Paste Offer Code</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="manualOfferInput" placeholder="Paste Offer Code..." class="flex-1 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <button onclick="handleManualOffer()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-700">Accept</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <div id="receiveStep2" class="hidden flex flex-col items-center w-full">
                     <p class="font-bold text-indigo-900 mb-2">Offer Accepted!</p>
                     <p class="text-xs text-slate-500 mb-4">Step 2: Let the sender scan this Answer QR</p>
                     <div class="bg-white p-3 rounded-2xl border-4 border-indigo-100 shadow-sm" id="qrcodeAnswer"></div>
-                    <p class="text-xs text-indigo-500 font-semibold mt-2" id="xenderReceiveStatus">Waiting for connection...</p>
+                    <div class="mt-4 flex flex-col items-center gap-2">
+                        <button id="copyAnswerBtn" onclick="copyXenderCode('answer')" class="text-indigo-600 font-bold text-sm bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">content_copy</span> Copy Answer Code
+                        </button>
+                        <p class="text-xs text-indigo-500 font-semibold" id="xenderReceiveStatus">Waiting for connection...</p>
+                    </div>
                 </div>
             </div>
             
@@ -421,6 +447,8 @@
                     
                     document.getElementById('xenderSendStatus').textContent = "Show this QR to the receiver";
                     document.getElementById('senderScanBtn').classList.remove('hidden');
+                    document.getElementById('copyOfferBtn').classList.remove('hidden');
+                    document.getElementById('senderManualFallback').classList.remove('hidden');
                 }
             };
 
@@ -567,6 +595,50 @@
         await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'offer', sdp: sdp}));
         const answer = await xenderPeer.createAnswer();
         await xenderPeer.setLocalDescription(answer);
+    }
+
+    // --- Manual Fallback Functions ---
+    function copyXenderCode(type) {
+        let code = "";
+        if (type === 'offer') {
+            const sdp = optimizeSDP(xenderPeer.localDescription.sdp);
+            code = "OFR:" + LZString.compressToEncodedURIComponent(sdp);
+        } else if (type === 'answer') {
+            const sdp = optimizeSDP(xenderPeer.localDescription.sdp);
+            code = "ANS:" + LZString.compressToEncodedURIComponent(sdp);
+        }
+        navigator.clipboard.writeText(code).then(() => {
+            alert(type.charAt(0).toUpperCase() + type.slice(1) + " Code copied to clipboard! Send it to the other device.");
+        });
+    }
+
+    async function handleManualOffer() {
+        const code = document.getElementById('manualOfferInput').value.trim();
+        if (code.startsWith("OFR:")) {
+            const sdp = LZString.decompressFromEncodedURIComponent(code.substring(4));
+            if (sdp) {
+                handleSenderOffer(sdp);
+            } else {
+                alert("Invalid Offer Code.");
+            }
+        } else {
+            alert("Invalid Offer Code format.");
+        }
+    }
+
+    async function handleManualAnswer() {
+        const code = document.getElementById('manualAnswerInput').value.trim();
+        if (code.startsWith("ANS:")) {
+            const sdp = LZString.decompressFromEncodedURIComponent(code.substring(4));
+            if (sdp) {
+                document.getElementById('xenderSendStatus').textContent = "Answer accepted! Connecting...";
+                await xenderPeer.setRemoteDescription(new RTCSessionDescription({type: 'answer', sdp: sdp}));
+            } else {
+                alert("Invalid Answer Code.");
+            }
+        } else {
+            alert("Invalid Answer Code format.");
+        }
     }
 
     function showXenderTransferUI() {
