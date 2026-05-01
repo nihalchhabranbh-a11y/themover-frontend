@@ -627,6 +627,14 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         let currentPath = null;
         let neonColor = '#ff00ff';
         let drawingGroup3D;
+        
+        let sphereGeo3D = null;
+        const colorMats3D = {};
+        function getSharedMat3D(c) {
+            if (!colorMats3D[c]) colorMats3D[c] = new THREE.MeshBasicMaterial({ color: c });
+            return colorMats3D[c];
+        }
+        
         function setNeonColor(c) { neonColor = c; }
         function clearDrawing() { 
             drawingPaths = []; currentPath = null; 
@@ -689,11 +697,27 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         const rect = localVid.getBoundingClientRect();
                         if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return null;
                         
-                        let x = (e.clientX - rect.left) / rect.width;
-                        const y = (e.clientY - rect.top) / rect.height;
+                        // Fix for object-fit: cover offset
+                        const canvasRatio = canvas.width / canvas.height;
+                        const rectRatio = rect.width / rect.height;
+                        let scale, dx = 0, dy = 0;
+                        if (rectRatio > canvasRatio) {
+                            scale = rect.width / canvas.width;
+                            dy = (rect.height - canvas.height * scale) / 2;
+                        } else {
+                            scale = rect.height / canvas.height;
+                            dx = (rect.width - canvas.width * scale) / 2;
+                        }
                         
-                        if (localVid.style.transform.includes('scaleX(-1)')) x = 1.0 - x;
-                        return { x, y };
+                        let mouseX = e.clientX - rect.left;
+                        let mouseY = e.clientY - rect.top;
+                        
+                        if (localVid.style.transform.includes('scaleX(-1)')) mouseX = rect.width - mouseX;
+                        
+                        const canvasX = (mouseX - dx) / scale;
+                        const canvasY = (mouseY - dy) / scale;
+                        
+                        return { x: canvasX / canvas.width, y: canvasY / canvas.height };
                     }
                     
                     function addPencilPoint(pt) {
@@ -708,9 +732,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                             vec.sub(camera360.position).normalize();
                             const pos = camera360.position.clone().add(vec.multiplyScalar(200));
                             
-                            const geo = new THREE.SphereGeometry(3, 8, 8);
-                            const mat = new THREE.MeshBasicMaterial({ color: neonColor });
-                            const mesh = new THREE.Mesh(geo, mat);
+                            if (!sphereGeo3D) sphereGeo3D = new THREE.SphereGeometry(3, 8, 8);
+                            const mesh = new THREE.Mesh(sphereGeo3D, getSharedMat3D(neonColor));
                             mesh.position.copy(pos);
                             drawingGroup3D.add(mesh);
                         }
@@ -837,10 +860,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                             const distance = 200; // fixed distance from camera
                                             const pos = camera360.position.clone().add(vec.multiplyScalar(distance));
                                             
-                                            // Create a small glowing sphere
-                                            const geo = new THREE.SphereGeometry(3, 8, 8);
-                                            const mat = new THREE.MeshBasicMaterial({ color: neonColor });
-                                            const mesh = new THREE.Mesh(geo, mat);
+                                            if (!sphereGeo3D) sphereGeo3D = new THREE.SphereGeometry(3, 8, 8);
+                                            const mesh = new THREE.Mesh(sphereGeo3D, getSharedMat3D(neonColor));
                                             mesh.position.copy(pos);
                                             drawingGroup3D.add(mesh);
                                         }
