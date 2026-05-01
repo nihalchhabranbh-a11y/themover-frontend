@@ -473,7 +473,7 @@
         document.getElementById('sender-qr-reader').classList.remove('hidden');
         
         html5QrcodeScanner = new Html5Qrcode("sender-qr-reader");
-        html5QrcodeScanner.start({ facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }, { fps: 10 },
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10 },
             async (decodedText) => {
                 if(decodedText.startsWith("ANS:")) {
                     html5QrcodeScanner.stop();
@@ -534,7 +534,7 @@
     function startReceiverScanner() {
         document.getElementById('scanBtn').classList.add('hidden');
         html5QrcodeScanner = new Html5Qrcode("qr-reader");
-        html5QrcodeScanner.start({ facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }, { fps: 10 },
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10 },
             async (decodedText) => {
                 if(decodedText.startsWith("OFR:")) {
                     html5QrcodeScanner.stop();
