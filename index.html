@@ -527,9 +527,18 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         function addVideoTile(sid, name, stream, local) {
             const g = document.getElementById('video-grid');
             let tile = document.getElementById('vtile-' + sid);
-            if (!tile) { tile = document.createElement('div'); tile.className = 'video-tile'; tile.id = 'vtile-' + sid; g.appendChild(tile); }
-            tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>`;
-            document.getElementById('vid-' + sid).srcObject = stream;
+            if (!tile) { 
+                tile = document.createElement('div'); 
+                tile.className = 'video-tile'; 
+                tile.id = 'vtile-' + sid; 
+                tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>`;
+                g.appendChild(tile); 
+            }
+            const vid = document.getElementById('vid-' + sid);
+            if (vid.srcObject !== stream) {
+                vid.srcObject = stream;
+                vid.play().catch(e => console.warn('Autoplay prevented:', e));
+            }
             updateGrid();
         }
         function updateGrid() {
