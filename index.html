@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -264,6 +265,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         <option value="alien">👽 Thermal</option>
                         <option value="negative">👻 Negative</option>
                         <option value="ghost">🌫️ Ghost Trail</option>
+                        <option value="360">🌌 360° Virtual Room</option>
                     </optgroup>
                 </select>
                 <button class="ctrl-btn" id="btn-ar" onclick="toggleAR()" style="font-size:16px;" title="Enable AR Emojis & Neon Drawing">✌️</button>
@@ -630,6 +632,50 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 const ctx = canvas.getContext('2d');
                 canvas.width = 640; canvas.height = 480;
                 
+                // Setup 360 Environment
+                let scene360, camera360, renderer360;
+                let lon = 0, lat = 0;
+                let isDragging360 = false, onPointerDownX = 0, onPointerDownY = 0, onPointerDownLon = 0, onPointerDownLat = 0;
+                
+                if (typeof THREE !== 'undefined') {
+                    scene360 = new THREE.Scene();
+                    camera360 = new THREE.PerspectiveCamera(75, 640/480, 0.1, 1000);
+                    renderer360 = new THREE.WebGLRenderer({ antialias: true });
+                    renderer360.setSize(640, 480);
+                    
+                    const textureLoader = new THREE.TextureLoader();
+                    textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/4/4c/Equirectangular_projection_SW.jpg', function(texture) {
+                        const geometry = new THREE.SphereGeometry(500, 60, 40);
+                        geometry.scale(-1, 1, 1);
+                        const material = new THREE.MeshBasicMaterial({ map: texture });
+                        const mesh = new THREE.Mesh(geometry, material);
+                        scene360.add(mesh);
+                    });
+                    
+                    // Device Orientation
+                    window.addEventListener("deviceorientation", function(event) {
+                        if (videoFilter === '360' && event.alpha != null) {
+                            lon = event.alpha;
+                            lat = event.beta - 90;
+                        }
+                    }, true);
+                    
+                    // Mouse dragging
+                    window.addEventListener('pointerdown', (e) => {
+                        if (videoFilter !== '360') return;
+                        isDragging360 = true;
+                        onPointerDownX = e.clientX; onPointerDownY = e.clientY;
+                        onPointerDownLon = lon; onPointerDownLat = lat;
+                    });
+                    window.addEventListener('pointermove', (e) => {
+                        if (isDragging360 && videoFilter === '360') {
+                            lon = (onPointerDownX - e.clientX) * 0.1 + onPointerDownLon;
+                            lat = (e.clientY - onPointerDownY) * 0.1 + onPointerDownLat;
+                        }
+                    });
+                    window.addEventListener('pointerup', () => { isDragging360 = false; });
+                }
+                
                 // Start processing loop
                 function drawFrame() {
                     if (!inCall) return;
@@ -651,8 +697,22 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         // Ghost trail needs lower alpha to blend frames
                         ctx.globalAlpha = isGhost ? 0.15 : 1.0;
                         
-                        // Draw raw video onto canvas
-                        ctx.drawImage(rawVid, 0, 0, canvas.width, canvas.height);
+                        if (videoFilter === '360' && renderer360) {
+                            lat = Math.max(-85, Math.min(85, lat));
+                            phi = THREE.MathUtils.degToRad(90 - lat);
+                            theta = THREE.MathUtils.degToRad(lon);
+                            camera360.target = new THREE.Vector3(
+                                500 * Math.sin(phi) * Math.cos(theta),
+                                500 * Math.cos(phi),
+                                500 * Math.sin(phi) * Math.sin(theta)
+                            );
+                            camera360.lookAt(camera360.target);
+                            renderer360.render(scene360, camera360);
+                            ctx.drawImage(renderer360.domElement, 0, 0, canvas.width, canvas.height);
+                        } else {
+                            // Draw raw video onto canvas
+                            ctx.drawImage(rawVid, 0, 0, canvas.width, canvas.height);
+                        }
                         
                         ctx.filter = 'none'; // reset for drawing emojis
                         ctx.globalAlpha = 1.0;
