@@ -614,8 +614,12 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         let drawingPaths = [];
         let currentPath = null;
         let neonColor = '#ff00ff';
+        let drawingGroup3D;
         function setNeonColor(c) { neonColor = c; }
-        function clearDrawing() { drawingPaths = []; currentPath = null; }
+        function clearDrawing() { 
+            drawingPaths = []; currentPath = null; 
+            if (typeof drawingGroup3D !== 'undefined' && drawingGroup3D) drawingGroup3D.clear();
+        }
 
         async function joinCall() {
             try {
@@ -642,6 +646,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     camera360 = new THREE.PerspectiveCamera(75, 640/480, 0.1, 1000);
                     renderer360 = new THREE.WebGLRenderer({ antialias: true });
                     renderer360.setSize(640, 480);
+                    
+                    drawingGroup3D = new THREE.Group();
+                    scene360.add(drawingGroup3D);
                     
                     const textureLoader = new THREE.TextureLoader();
                     textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/4/4c/Equirectangular_projection_SW.jpg', function(texture) {
@@ -740,7 +747,27 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                                             currentPath = { color: neonColor, points: [] };
                                             drawingPaths.push(currentPath);
                                         }
-                                        currentPath.points.push({ x: indexTip.x * canvas.width, y: indexTip.y * canvas.height });
+                                        const px = indexTip.x * canvas.width;
+                                        const py = indexTip.y * canvas.height;
+                                        currentPath.points.push({ x: px, y: py });
+                                        
+                                        // 3D Spatial Drawing mapping
+                                        if (videoFilter === '360' && camera360 && drawingGroup3D) {
+                                            const ndcX = (indexTip.x * 2) - 1;
+                                            const ndcY = -(indexTip.y * 2) + 1;
+                                            const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+                                            vec.unproject(camera360);
+                                            vec.sub(camera360.position).normalize();
+                                            const distance = 200; // fixed distance from camera
+                                            const pos = camera360.position.clone().add(vec.multiplyScalar(distance));
+                                            
+                                            // Create a small glowing sphere
+                                            const geo = new THREE.SphereGeometry(3, 8, 8);
+                                            const mat = new THREE.MeshBasicMaterial({ color: neonColor });
+                                            const mesh = new THREE.Mesh(geo, mat);
+                                            mesh.position.copy(pos);
+                                            drawingGroup3D.add(mesh);
+                                        }
                                     } else {
                                         currentPath = null; // stop drawing line segment
                                     }
@@ -763,23 +790,25 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                             } catch(e) {}
                         }
                         
-                        // Draw Neon Paths
-                        drawingPaths.forEach(path => {
-                            if (path.points.length < 2) return;
-                            ctx.beginPath();
-                            ctx.moveTo(path.points[0].x, path.points[0].y);
-                            for (let i = 1; i < path.points.length; i++) {
-                                ctx.lineTo(path.points[i].x, path.points[i].y);
-                            }
-                            ctx.strokeStyle = path.color;
-                            ctx.lineWidth = 6;
-                            ctx.lineCap = 'round';
-                            ctx.lineJoin = 'round';
-                            ctx.shadowBlur = 15;
-                            ctx.shadowColor = path.color;
-                            ctx.stroke();
-                        });
-                        ctx.shadowBlur = 0; // reset
+                        // Draw Neon Paths (Only in 2D mode. In 360 mode they are rendered by Three.js)
+                        if (videoFilter !== '360') {
+                            drawingPaths.forEach(path => {
+                                if (path.points.length < 2) return;
+                                ctx.beginPath();
+                                ctx.moveTo(path.points[0].x, path.points[0].y);
+                                for (let i = 1; i < path.points.length; i++) {
+                                    ctx.lineTo(path.points[i].x, path.points[i].y);
+                                }
+                                ctx.strokeStyle = path.color;
+                                ctx.lineWidth = 6;
+                                ctx.lineCap = 'round';
+                                ctx.lineJoin = 'round';
+                                ctx.shadowBlur = 15;
+                                ctx.shadowColor = path.color;
+                                ctx.stroke();
+                            });
+                            ctx.shadowBlur = 0; // reset
+                        }
                     }
                 }
                 
