@@ -1,4 +1,4 @@
-const CACHE_NAME = 'themover-v2';
+const CACHE_NAME = 'themover-v3';
 const OFFLINE_URLS = [
   '/',
   '/index.html',
