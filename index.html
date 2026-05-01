@@ -138,7 +138,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
 /* Live Cursors */
 .live-cursor {
-    position: absolute;
+    position: fixed;
     pointer-events: none;
     z-index: 9999;
     transition: transform 0.05s linear;
@@ -269,6 +269,24 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <div class="pip-badge"><div class="dot"></div> Live</div>
     <button class="pip-close" onclick="closePip()">×</button>
     <div id="pip-container"></div>
+</div>
+
+<!-- Collaborative Editor Modal -->
+<div class="modal-bg" id="editorModal" style="display:none; z-index:10000; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
+    <div style="width:90%; max-width:800px; height:80vh; display:flex; flex-direction:column; background:#0d0d17; border:1px solid rgba(255,255,255,0.1); border-radius:12px; box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px; border-bottom:1px solid rgba(255,255,255,0.05); background:#1a1a2e; border-radius:12px 12px 0 0;">
+            <div style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;">
+                <span class="icon" style="font-size:16px; color:var(--primary);">edit_document</span>
+                <span id="editor-filename">filename.txt</span>
+                <span id="editor-sync-status" style="font-size:10px; color:var(--success); margin-left:8px;">Synced</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="dl-btn" style="background:var(--primary);" onclick="saveEditorFile()">Save to Workspace</button>
+                <button class="dl-btn" style="background:var(--danger);" onclick="closeEditor()">Close</button>
+            </div>
+        </div>
+        <textarea id="shared-editor" spellcheck="false" style="flex:1; width:100%; background:transparent; color:#e2e8f0; border:none; padding:20px; font-family:'Menlo','Monaco','Courier New',monospace; font-size:13px; line-height:1.6; resize:none; outline:none;"></textarea>
+    </div>
 </div>
 
 <!-- Flash Share Modal (unchanged structure to keep JS happy) -->
@@ -426,11 +444,15 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 list.innerHTML = d.files.map(f => {
                     const ext = f.filename.split('.').pop().toLowerCase();
                     const icon = { 'pdf': '📄', 'png': '🖼', 'jpg': '🖼', 'jpeg': '🖼', 'mp4': '🎬', 'mp3': '🎵', 'zip': '📦', 'doc': '📝', 'docx': '📝' }[ext] || '📁';
+                    const isText = ['txt','js','html','css','py','json','md','csv'].includes(ext);
                     return `<div class="file-card" data-cid="${f.public_id}" data-url="${f.url}">
         <span class="file-icon">${icon}</span>
         <div class="file-info"><div class="file-name" title="${f.filename}">${f.filename}</div>
         <div class="file-size">${f.size_mb ? f.size_mb.toFixed(2) + ' MB' : ''}</div></div>
-        <button class="dl-btn" onclick="startDownload('${f.public_id}','${f.url}','${f.filename}')">⬇ Get</button>
+        <div style="display:flex; gap:8px;">
+            ${isText ? `<button class="dl-btn" style="background:#374151;" onclick="openEditor('${f.public_id}','${f.url}','${f.filename}')">✎ Edit</button>` : ''}
+            <button class="dl-btn" onclick="startDownload('${f.public_id}','${f.url}','${f.filename}')">⬇ Get</button>
+        </div>
       </div>`;
                 }).join('');
             });
@@ -440,6 +462,68 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             window._dlTimer = setTimeout(() => window.location.href = url, 1500);
             socket.emit('request_download', { public_id: pid });
         }
+
+        // ── Collaborative Editor ───────────────────────────────────────────────────
+        let activeEditorPid = null;
+        async function openEditor(pid, url, filename) {
+            activeEditorPid = pid;
+            document.getElementById('editor-filename').textContent = filename;
+            document.getElementById('editorModal').style.display = 'flex';
+            document.getElementById('shared-editor').value = 'Loading...';
+            
+            try {
+                const res = await fetch(url);
+                const text = await res.text();
+                document.getElementById('shared-editor').value = text;
+            } catch (e) {
+                document.getElementById('shared-editor').value = 'Error loading file content.';
+            }
+        }
+        function closeEditor() {
+            document.getElementById('editorModal').style.display = 'none';
+            activeEditorPid = null;
+        }
+        async function saveEditorFile() {
+            if (!activeEditorPid) return;
+            const text = document.getElementById('shared-editor').value;
+            const filename = document.getElementById('editor-filename').textContent;
+            const btn = document.querySelector('#editorModal .dl-btn[style*="background:var(--primary)"]');
+            const ogText = btn.textContent;
+            btn.textContent = 'Saving...';
+            
+            const file = new File([text], filename, { type: 'text/plain' });
+            
+            // Re-use upload logic
+            const res = await fetch(API + '/upload/init', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name, total_chunks: 1 }) });
+            const data = await res.json();
+            const uid = data.upload_id;
+            
+            const fd = new FormData();
+            fd.append('chunk', file);
+            fd.append('index', 0); fd.append('total', 1);
+            fd.append('upload_id', uid); fd.append('filename', file.name);
+            await fetch(API + '/upload/chunk', { method: 'POST', body: fd });
+            
+            const fin = await fetch(API + '/upload/finalize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ upload_id: uid, filename: file.name, group: wsCode }) });
+            const finData = await fin.json();
+            
+            if (finData.file) {
+                // Delete old file
+                socket.emit('delete_file', { code: wsCode, public_id: activeEditorPid, name: userName });
+                activeEditorPid = finData.file.public_id;
+                socket.emit('chat_message', { code: wsCode, name: userName, text: '💾 Updated file: ' + filename, file_url: finData.file.url, file_name: filename });
+                btn.textContent = 'Saved!';
+                setTimeout(() => { btn.textContent = ogText; loadFiles(); }, 1500);
+            }
+        }
+        
+        document.getElementById('shared-editor').addEventListener('input', (e) => {
+            if (!activeEditorPid) return;
+            document.getElementById('editor-sync-status').textContent = 'Syncing...';
+            socket.emit('file_edit', { code: wsCode, public_id: activeEditorPid, text: e.target.value });
+            clearTimeout(window._syncTimer);
+            window._syncTimer = setTimeout(() => { document.getElementById('editor-sync-status').textContent = 'Synced'; }, 500);
+        });
 
         // ── Chat ────────────────────────────────────────────────────────────────────
         function sendMsg() {
@@ -868,6 +952,18 @@ initSocket = function() {
         if (cursors[d.sid]) {
             if (cursors[d.sid].parentNode) cursors[d.sid].parentNode.removeChild(cursors[d.sid]);
             delete cursors[d.sid];
+        }
+    });
+
+    socket.on('file_edited', d => {
+        if (activeEditorPid === d.public_id) {
+            const editor = document.getElementById('shared-editor');
+            const pos = editor.selectionStart;
+            editor.value = d.text;
+            editor.setSelectionRange(pos, pos);
+            document.getElementById('editor-sync-status').textContent = 'Live Syncing...';
+            clearTimeout(window._syncTimer);
+            window._syncTimer = setTimeout(() => { document.getElementById('editor-sync-status').textContent = 'Synced'; }, 500);
         }
     });
 };
