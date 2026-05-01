@@ -602,7 +602,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         }
         async function onCallOffer(d) {
             if (!localStream) return;
-            const pc = mkPeer(d.sender, d.name);
+            // Reuse existing peer if present (renegotiation), else create new
+            let pc = peers[d.sender];
+            if (!pc) pc = mkPeer(d.sender, d.name);
             await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
             const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
             socket.emit('call_answer', { target: d.sender, answer: ans });
@@ -724,17 +726,48 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             document.getElementById('btn-cam').style.background = camOn ? 'rgba(255,255,255,.1)' : 'var(--danger)';
         }
         async function shareScreen() {
+            const btn = document.getElementById('btn-screen');
             try {
-                const ss = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                const track = ss.getVideoTracks()[0];
-                Object.values(peers).forEach(pc => pc.getSenders().find(s => s.track?.kind === 'video')?.replaceTrack(track));
-                document.getElementById('vid-local').srcObject = ss;
-                track.onended = () => {
-                    const cam = localStream?.getVideoTracks()[0];
-                    Object.values(peers).forEach(pc => pc.getSenders().find(s => s.track?.kind === 'video')?.replaceTrack(cam));
-                    document.getElementById('vid-local').srcObject = localStream;
+                const ss = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false });
+                const screenTrack = ss.getVideoTracks()[0];
+
+                // Replace track in all existing peer connections
+                Object.values(peers).forEach(pc => {
+                    const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                    if (sender) sender.replaceTrack(screenTrack);
+                });
+
+                // Update localStream so NEW peers joining mid-share also get screen
+                const camTrack = localStream?.getVideoTracks()[0];
+                if (camTrack) { localStream.removeTrack(camTrack); camTrack.stop(); }
+                localStream.addTrack(screenTrack);
+
+                // Update local video tile
+                const vidLocal = document.getElementById('vid-local');
+                if (vidLocal) vidLocal.srcObject = localStream;
+
+                btn.style.background = 'var(--primary)';
+                btn.title = 'Stop Screen Share';
+
+                screenTrack.onended = async () => {
+                    // Restore camera when user stops sharing
+                    try {
+                        const newCamStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        const newCamTrack = newCamStream.getVideoTracks()[0];
+                        localStream.removeTrack(screenTrack);
+                        localStream.addTrack(newCamTrack);
+                        Object.values(peers).forEach(pc => {
+                            const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                            if (sender) sender.replaceTrack(newCamTrack);
+                        });
+                        if (vidLocal) vidLocal.srcObject = localStream;
+                    } catch(e) { console.warn('Camera restore failed:', e); }
+                    btn.style.background = 'rgba(255,255,255,.1)';
+                    btn.title = 'Share Screen';
                 };
-            } catch (e) { }
+            } catch (e) {
+                if (e.name !== 'NotAllowedError') console.error('Screen share error:', e);
+            }
         }
 
         // ── Flash Share ─────────────────────────────────────────────────────────────
