@@ -470,9 +470,12 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         async function uploadFile(file) {
             const CHUNK = 4 * 1024 * 1024, total = Math.ceil(file.size / CHUNK);
             const uid = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-            const wrap = document.getElementById('upload-wrap'), bar = document.getElementById('upload-bar');
-            const stat = document.getElementById('upload-status');
-            wrap.style.display = 'block'; stat.style.display = 'block';
+            const wrap = document.getElementById('progress-wrap'), bar = document.getElementById('progress-bar');
+            const pctText = document.getElementById('progress-pct'), nameText = document.getElementById('progress-filename');
+            wrap.style.display = 'block'; 
+            nameText.textContent = file.name;
+            pctText.textContent = '0%';
+            
             for (let i = 0; i < total; i++) {
                 const fd = new FormData();
                 fd.append('chunk', file.slice(i * CHUNK, (i + 1) * CHUNK));
@@ -480,9 +483,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 fd.append('upload_id', uid); fd.append('filename', file.name);
                 await fetch(API + '/upload/chunk', { method: 'POST', body: fd });
                 const pct = Math.round(((i + 1) / total) * 85);
-                bar.style.width = pct + '%'; stat.textContent = 'Uploading… ' + pct + '%';
+                bar.style.width = pct + '%'; pctText.textContent = pct + '%';
             }
-            bar.style.width = '95%'; stat.textContent = 'Finalizing…';
+            bar.style.width = '95%'; pctText.textContent = 'Finalizing…';
             const res = await fetch(API + '/upload/finalize', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ upload_id: uid, filename: file.name, group: wsCode })
@@ -494,7 +497,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 socket.emit('register_uploader', { public_id: data.file.public_id });
                 socket.emit('chat_message', { code: wsCode, name: userName, text: '📎 Shared: ' + file.name, file_url: data.file.url, file_name: file.name });
             }
-            setTimeout(() => { wrap.style.display = 'none'; bar.style.width = '0%'; stat.style.display = 'none'; loadFiles(); }, 800);
+            setTimeout(() => { wrap.style.display = 'none'; bar.style.width = '0%'; loadFiles(); }, 800);
         }
         function loadFiles() {
             fetch(API + '/files?group=' + wsCode).then(r => r.json()).then(d => {
