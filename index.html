@@ -214,7 +214,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             <input type="file" id="file-upload" multiple>
             <span class="icon dz-icon">cloud_upload</span>
             <div class="dz-title">Drag & drop files here</div>
-            <div class="dz-sub">or click to browse • Supports any file up to 20GB</div>
+            <div class="dz-sub">or click to browse • Supports any file up to 50MB</div>
             <button class="xender-btn" style="width:auto; border-radius:20px; padding:8px 24px;">Choose Files</button>
         </div>
         
@@ -396,9 +396,26 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const dz = document.getElementById('drop-zone');
             dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
             dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-            dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); });
+            dz.addEventListener('drop', e => { 
+                e.preventDefault(); 
+                dz.classList.remove('drag'); 
+                if (e.dataTransfer.files[0]) {
+                    if (e.dataTransfer.files[0].size > 50 * 1024 * 1024) {
+                        alert('Workspace files are limited to 50MB. Please use Flash Share for larger files!');
+                        return;
+                    }
+                    uploadFile(e.dataTransfer.files[0]); 
+                }
+            });
             document.getElementById('file-upload').addEventListener('change', function() {
-                if (this.files[0]) uploadFile(this.files[0]);
+                if (this.files[0]) {
+                    if (this.files[0].size > 50 * 1024 * 1024) {
+                        alert('Workspace files are limited to 50MB. Please use Flash Share for larger files!');
+                        this.value = '';
+                        return;
+                    }
+                    uploadFile(this.files[0]);
+                }
                 this.value = '';
             });
         });
@@ -1229,6 +1246,18 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             }, () => { }).catch(() => alert('Camera denied'));
         }
         let xChunks = [], xMeta = null, xRecvBytes = 0;
+        let fileStream = null, writeQueue = [], isWriting = false;
+        
+        async function processWriteQueue() {
+            if (isWriting || !fileStream) return;
+            isWriting = true;
+            while (writeQueue.length > 0) {
+                const chunk = writeQueue.shift();
+                try { await fileStream.write(chunk); } catch(e) { console.error('Write error', e); }
+            }
+            isWriting = false;
+        }
+
         function startReceiverScanner() {
             document.getElementById('xScanOfferBtn').style.display = 'none';
             document.getElementById('qr-reader').innerHTML = '';
@@ -1254,11 +1283,18 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             };
             xPeer.ondatachannel = e => {
                 const dc = e.channel; dc.binaryType = 'arraybuffer';
-                dc.onmessage = msg => {
+                dc.onmessage = async msg => {
                     if (typeof msg.data === 'string') {
                         const info = JSON.parse(msg.data);
                         if (info.type === 'meta') {
                             xMeta = info; xChunks = []; xRecvBytes = 0;
+                            writeQueue = []; fileStream = null;
+                            if (window.showSaveFilePicker) {
+                                try {
+                                    const handle = await window.showSaveFilePicker({ suggestedName: info.name });
+                                    fileStream = await handle.createWritable();
+                                } catch(err) { console.warn('Stream to disk cancelled or failed, using RAM fallback.'); }
+                            }
                             document.getElementById('xreceive').style.display = 'none';
                             document.getElementById('xTransfer').style.display = 'block';
                             document.getElementById('xTransferDetail').textContent = 'Receiving: ' + info.name;
@@ -1266,11 +1302,23 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                             document.getElementById('xProgressFill').style.width = '100%';
                             document.getElementById('xProgressText').textContent = '100%';
                             document.getElementById('xTransferDetail').textContent = 'Done! ✅';
-                            const url = URL.createObjectURL(new Blob(xChunks));
-                            const a = document.createElement('a'); a.href = url; a.download = xMeta.name; a.click(); URL.revokeObjectURL(url);
+                            if (fileStream) {
+                                await fileStream.close();
+                                fileStream = null;
+                            } else {
+                                const url = URL.createObjectURL(new Blob(xChunks));
+                                const a = document.createElement('a'); a.href = url; a.download = xMeta.name; a.click(); URL.revokeObjectURL(url);
+                                xChunks = [];
+                            }
                         }
                     } else {
-                        xChunks.push(msg.data); xRecvBytes += msg.data.byteLength;
+                        xRecvBytes += msg.data.byteLength;
+                        if (fileStream) {
+                            writeQueue.push(msg.data);
+                            processWriteQueue();
+                        } else {
+                            xChunks.push(msg.data); 
+                        }
                         const pct = Math.min(100, Math.round(xRecvBytes / xMeta.size * 100));
                         document.getElementById('xProgressFill').style.width = pct + '%'; document.getElementById('xProgressText').textContent = pct + '%';
                     }
