@@ -214,7 +214,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             <input type="file" id="file-upload" multiple>
             <span class="icon dz-icon">cloud_upload</span>
             <div class="dz-title">Drag & drop files here</div>
-            <div class="dz-sub">or click to browse • Supports any file up to 50MB</div>
+            <div class="dz-sub">or click to browse • Supports any file up to 20GB</div>
             <button class="xender-btn" style="width:auto; border-radius:20px; padding:8px 24px;">Choose Files</button>
         </div>
         
@@ -400,20 +400,11 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 e.preventDefault(); 
                 dz.classList.remove('drag'); 
                 if (e.dataTransfer.files[0]) {
-                    if (e.dataTransfer.files[0].size > 50 * 1024 * 1024) {
-                        alert('Workspace files are limited to 50MB. Please use Flash Share for larger files!');
-                        return;
-                    }
                     uploadFile(e.dataTransfer.files[0]); 
                 }
             });
             document.getElementById('file-upload').addEventListener('change', function() {
                 if (this.files[0]) {
-                    if (this.files[0].size > 50 * 1024 * 1024) {
-                        alert('Workspace files are limited to 50MB. Please use Flash Share for larger files!');
-                        this.value = '';
-                        return;
-                    }
                     uploadFile(this.files[0]);
                 }
                 this.value = '';
