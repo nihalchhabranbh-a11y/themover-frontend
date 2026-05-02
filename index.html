@@ -210,12 +210,12 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     
     <!-- Files -->
     <div class="panel active" id="panel-files">
-        <div id="drop-zone" onclick="document.getElementById('file-upload').click()">
-            <input type="file" id="file-upload" multiple>
+        <input type="file" id="file-upload" multiple style="display:none" onclick="event.stopPropagation()">
+        <div id="drop-zone">
             <span class="icon dz-icon">cloud_upload</span>
             <div class="dz-title">Drag & drop files here</div>
             <div class="dz-sub">or click to browse • Supports any file up to 20GB</div>
-            <button class="xender-btn" style="width:auto; border-radius:20px; padding:8px 24px;">Choose Files</button>
+            <button class="xender-btn" style="width:auto; border-radius:20px; padding:8px 24px;" onclick="document.getElementById('file-upload').click()">Choose Files</button>
         </div>
         
         <div class="progress-bar-wrap" id="progress-wrap">
