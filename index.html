@@ -498,7 +498,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const data = await res.json();
             if (!res.ok) {
                 wrap.style.display = 'none'; bar.style.width = '0%';
-                alert('Finalize Error: ' + (data.error || 'Unknown error'));
+                alert('Finalize Error: ' + (data.error || 'Unknown error') + '\n\n' + (data.traceback || ''));
                 return;
             }
             bar.style.width = '100%';
