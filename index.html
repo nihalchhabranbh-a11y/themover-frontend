@@ -481,7 +481,12 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 fd.append('chunk', file.slice(i * CHUNK, (i + 1) * CHUNK));
                 fd.append('index', i); fd.append('total', total);
                 fd.append('upload_id', uid); fd.append('filename', file.name);
-                await fetch(API + '/upload/chunk', { method: 'POST', body: fd });
+                const chunkRes = await fetch(API + '/upload/chunk', { method: 'POST', body: fd });
+                if (!chunkRes.ok) {
+                    wrap.style.display = 'none'; bar.style.width = '0%';
+                    alert('Upload failed: Server disk full or network error. Please use Flash Share for large files!');
+                    return;
+                }
                 const pct = Math.round(((i + 1) / total) * 85);
                 bar.style.width = pct + '%'; pctText.textContent = pct + '%';
             }
