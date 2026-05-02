@@ -194,7 +194,7 @@
       oninput="this.value = this.value.toUpperCase()"
       onkeydown="if(event.key==='Enter') joinWorkspace()"/>
     <input type="text" id="joinName" placeholder="Your display name" maxlength="30"/>
-    <button class="btn btn-secondary" onclick="joinWorkspace()">
+    <button class="btn btn-secondary" id="join-btn" onclick="joinWorkspace()">
       <span>🔑</span> Join Workspace
     </button>
     <div class="error" id="joinError"></div>
@@ -270,22 +270,20 @@
     const code = document.getElementById('joinCode').value.trim().toUpperCase();
     const userName = document.getElementById('joinName').value.trim();
     const err = document.getElementById('joinError');
-    const btn = document.querySelector('.card:last-of-type .btn');
+    const btn = document.getElementById('join-btn');  // Fixed: direct id, not broken :last-of-type
     err.style.display = 'none';
 
     if (code.length < 4) { err.textContent = 'Please enter a valid code.'; err.style.display = 'block'; return; }
     if (!userName) { err.textContent = 'Please enter your display name.'; err.style.display = 'block'; return; }
 
-    // Join directly — workspace name will be updated once inside via socket event.
-    // Do NOT block on Render API (it may be cold/sleeping and cause friend to be stuck).
-    btn.textContent = 'Joining...';
+    btn.textContent = '⏳ Joining...';
     btn.disabled = true;
 
-    // Try to fetch workspace name, but don't block if server is slow
+    // Try to fetch workspace name (8s timeout for Render cold start)
     let wsName = code;
     try {
       const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), 4000); // 4 second timeout
+      const timeout = setTimeout(() => ctrl.abort(), 8000);
       const res = await fetch(`${API_BASE}/workspace/${code}`, { signal: ctrl.signal });
       clearTimeout(timeout);
       if (res.ok) {
@@ -293,7 +291,6 @@
         if (data.name) wsName = data.name;
       }
     } catch(e) {
-      // Server slow or offline — join anyway, name will update from socket
       console.warn('Workspace lookup timed out, joining anyway.');
     }
 
