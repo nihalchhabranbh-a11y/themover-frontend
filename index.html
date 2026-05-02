@@ -484,7 +484,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 const chunkRes = await fetch(API + '/upload/chunk', { method: 'POST', body: fd });
                 if (!chunkRes.ok) {
                     wrap.style.display = 'none'; bar.style.width = '0%';
-                    alert('Upload failed: Server disk full or network error. Please use Flash Share for large files!');
+                    alert('❌ Upload stopped. Server is busy or full.\nFor large files, please use ⚡ Flash Share instead.');
                     return;
                 }
                 const pct = Math.round(((i + 1) / total) * 85);
@@ -498,7 +498,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const data = await res.json();
             if (!res.ok) {
                 wrap.style.display = 'none'; bar.style.width = '0%';
-                alert('Finalize Error: ' + (data.error || 'Unknown error') + '\n\n' + (data.traceback || ''));
+                alert('❌ Upload failed: ' + (data.error || 'Server error') + '\n\nTip: If this keeps happening, use ⚡ Flash Share for large files.');
                 return;
             }
             bar.style.width = '100%';
