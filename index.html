@@ -496,6 +496,11 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 body: JSON.stringify({ upload_id: uid, filename: file.name, group: wsCode })
             });
             const data = await res.json();
+            if (!res.ok) {
+                wrap.style.display = 'none'; bar.style.width = '0%';
+                alert('Finalize Error: ' + (data.error || 'Unknown error'));
+                return;
+            }
             bar.style.width = '100%';
             if (data.file) {
                 hostedFiles[data.file.public_id] = file;
