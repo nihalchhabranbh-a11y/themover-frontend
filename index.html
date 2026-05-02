@@ -696,6 +696,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
         // ── Discord Voice Channels ───────────────────────────────────────────────────
         let voiceCurrentChannel = null, voiceStream = null, voicePeers = {}, voiceMuted = false;
+        let audioCtx = null, analyzer = null, dataArray = null, emoInterval = null, lastEmoTime = 0;
         const VOICE_ICE = { iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
@@ -722,19 +723,36 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             // Get mic
             try {
                 if (!voiceStream) voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                
+                // Init audio analyzer for auto-emotions
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyzer = audioCtx.createAnalyser();
+                    analyzer.fftSize = 256;
+                    const source = audioCtx.createMediaStreamSource(voiceStream);
+                    source.connect(analyzer);
+                    dataArray = new Uint8Array(analyzer.frequencyBinCount);
+                }
             } catch(e) { alert('Microphone access denied. Please allow microphone to use voice.'); return; }
+            
             // Leave old channel
             if (voiceCurrentChannel) leaveVoiceChannel(false);
             voiceCurrentChannel = channel;
             socket.emit('join_voice_channel', { code: wsCode, channel, name: userName });
+            
             // Show active bar + emoji reactions
             document.getElementById('voice-bar').style.display = 'flex';
             document.getElementById('voice-bar-channel').textContent = '🔊 ' + channel;
             document.getElementById('voice-react-bar').style.display = 'flex';
+
+            // Start auto emotion detection
+            if (emoInterval) clearInterval(emoInterval);
+            emoInterval = setInterval(detectEmotion, 500);
         }
 
         function leaveVoiceChannel(emit_event = true) {
             if (!voiceCurrentChannel) return;
+            if (emoInterval) clearInterval(emoInterval);
             if (emit_event) socket.emit('leave_voice_channel', { code: wsCode });
             // Close all peer connections
             Object.values(voicePeers).forEach(pc => pc.close());
@@ -743,6 +761,46 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             document.getElementById('voice-bar').style.display = 'none';
             document.getElementById('voice-react-bar').style.display = 'none';
             renderVoiceChannels({});
+        }
+
+        function detectEmotion() {
+            if (voiceMuted || !analyzer) return;
+            analyzer.getByteFrequencyData(dataArray);
+            
+            // Split into bass (low), mid, and treble (high)
+            let low = 0, mid = 0, high = 0;
+            const third = Math.floor(dataArray.length / 3);
+            for(let i=0; i<third; i++) low += dataArray[i];
+            for(let i=third; i<third*2; i++) mid += dataArray[i];
+            for(let i=third*2; i<dataArray.length; i++) high += dataArray[i];
+            
+            low /= third; mid /= third; high /= (dataArray.length - third*2);
+            const avg = (low + mid + high) / 3;
+            
+            if (avg < 20) return; // Not speaking
+            
+            const now = Date.now();
+            if (now - lastEmoTime < 4000) return; // 4s cooldown between auto-emojis
+            
+            let emoji = '';
+            if (high > low * 1.3 && avg > 50) {
+                // High pitch, energetic -> happy/laughing
+                emoji = Math.random() > 0.5 ? '😂' : '😊';
+            } else if (low > high * 1.5 && avg > 70) {
+                // Low pitch, loud -> angry/fire
+                emoji = Math.random() > 0.5 ? '😠' : '🔥';
+            } else if (avg < 40 && low > mid * 1.2) {
+                // Quiet, low energy -> sad
+                emoji = '😢';
+            } else if (avg > 80) {
+                // Very loud -> Wow
+                emoji = '😮';
+            }
+            
+            if (emoji) {
+                sendVoiceReaction(emoji);
+                lastEmoTime = now;
+            }
         }
 
         function sendVoiceReaction(emoji) {
