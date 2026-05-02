@@ -127,6 +127,23 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 .member-item { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border);}
 .member-avatar { width:32px; height:32px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:bold;}
 
+/* Voice Channels (Discord-style) */
+.voice-section { margin-top:24px; }
+.voice-section-title { font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; padding:0 4px; }
+.voice-channel-header { display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; border-radius:8px; transition:background 0.15s; }
+.voice-channel-header:hover { background:rgba(255,255,255,0.06); }
+.voice-channel-header.active { background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.3); }
+.voice-channel-name { flex:1; font-size:14px; font-weight:500; }
+.voice-channel-count { font-size:11px; color:var(--muted); background:rgba(255,255,255,0.08); padding:2px 7px; border-radius:10px; }
+.voice-members-list { padding:2px 10px 6px 34px; }
+.voice-member-item { display:flex; align-items:center; gap:6px; padding:3px 0; font-size:12px; color:var(--muted); }
+.voice-member-item .v-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; flex-shrink:0; }
+.voice-bar { display:flex; align-items:center; gap:8px; padding:10px 14px; background:rgba(34,197,94,0.1); border-radius:10px; margin-top:12px; border:1px solid rgba(34,197,94,0.25); }
+.voice-bar .vb-name { flex:1; font-size:13px; font-weight:600; color:#22c55e; }
+.voice-bar button { background:rgba(255,255,255,0.1); border:none; color:white; border-radius:6px; padding:4px 10px; cursor:pointer; font-size:12px; transition:background 0.15s; }
+.voice-bar button:hover { background:rgba(255,255,255,0.2); }
+
+
 /* Modal */
 .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 200; }
 .modal-bg.open { display: flex; }
@@ -285,8 +302,23 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <!-- Members & Admin -->
     <div class="panel" id="panel-members">
         <div class="dz-title">Workspace Members</div>
-        <div class="dz-sub">Manage people currently online in this workspace.</div>
-        <div id="members-list" style="margin-top:24px;"></div>
+        <div class="dz-sub">People online in this workspace.</div>
+        <div id="members-list" style="margin-top:16px;"></div>
+
+        <!-- Discord-style Voice Channels -->
+        <div class="voice-section">
+            <div class="voice-section-title">
+                <span>🔊 Voice Channels</span>
+            </div>
+            <div id="voice-channels-list"></div>
+            <!-- Active voice bar (shown when you're in a channel) -->
+            <div class="voice-bar" id="voice-bar" style="display:none;">
+                <span class="icon" style="color:#22c55e;font-size:18px;">mic</span>
+                <span class="vb-name" id="voice-bar-channel">General</span>
+                <button id="voice-mute-btn" onclick="toggleVoiceMute()">🔇 Mute</button>
+                <button onclick="leaveVoiceChannel()" style="background:rgba(248,113,113,0.2);color:#f87171;">✕ Leave</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -436,7 +468,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         // ── Socket.IO ───────────────────────────────────────────────────────────────
         function initSocket() {
             socket = io(WS_URL);
-            socket.on('connect', () => socket.emit('join_workspace', { code: wsCode, name: userName }));
+            socket.on('connect', () => {
+                socket.emit('join_workspace', { code: wsCode, name: userName });
+                renderVoiceChannels({});  // Show default channels immediately
+            });
             socket.on('chat_history', msgs => { if (msgs.length) { document.getElementById('chat-messages').innerHTML = ''; msgs.forEach(m => appendMsg(m, false)); } });
             socket.on('chat_message', m => appendMsg(m, true));
             socket.on('members_list', renderMembers);
@@ -451,6 +486,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             socket.on('relay_send_file', relayUpload);
             socket.on('relay_chunk', onRelayChunk);
             socket.on('use_cloud', (d) => { clearTimeout(window._dlTimer); location.href = document.querySelector('[data-cid="' + d.public_id + '"]')?.dataset.url || ''; });
+            // Discord-style voice channels
+            initVoiceListeners();
         }
 
         // ── Files ───────────────────────────────────────────────────────────────────
@@ -632,6 +669,115 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
       <div class="online-dot"></div>
     </div>`).join('');
         }
+
+        // ── Discord Voice Channels ───────────────────────────────────────────────────
+        let voiceCurrentChannel = null, voiceStream = null, voicePeers = {}, voiceMuted = false;
+        const VOICE_ICE = { iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+        ]};
+
+        function renderVoiceChannels(channels) {
+            const el = document.getElementById('voice-channels-list');
+            const DEFAULT = ['General', 'Work', 'Lounge'];
+            const all = { ...Object.fromEntries(DEFAULT.map(c => [c, []])), ...channels };
+            el.innerHTML = Object.entries(all).map(([ch, members]) => `
+              <div class="voice-channel-header ${voiceCurrentChannel === ch ? 'active' : ''}"
+                   onclick="joinVoiceChannel('${ch}')">
+                <span style="color:var(--muted);font-size:16px;">🔊</span>
+                <span class="voice-channel-name">${ch}</span>
+                ${members.length ? `<span class="voice-channel-count">${members.length}</span>` : ''}
+              </div>
+              ${members.length ? `<div class="voice-members-list">${members.map(m =>
+                `<div class="voice-member-item"><div class="v-dot"></div>${m.name}</div>`).join('')}</div>` : ''}
+            `).join('');
+        }
+
+        async function joinVoiceChannel(channel) {
+            if (voiceCurrentChannel === channel) { leaveVoiceChannel(); return; }
+            // Get mic
+            try {
+                if (!voiceStream) voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            } catch(e) { alert('Microphone access denied. Please allow microphone to use voice.'); return; }
+            // Leave old channel
+            if (voiceCurrentChannel) leaveVoiceChannel(false);
+            voiceCurrentChannel = channel;
+            socket.emit('join_voice_channel', { code: wsCode, channel, name: userName });
+            // Show active bar
+            document.getElementById('voice-bar').style.display = 'flex';
+            document.getElementById('voice-bar-channel').textContent = '🔊 ' + channel;
+        }
+
+        function leaveVoiceChannel(emit_event = true) {
+            if (!voiceCurrentChannel) return;
+            if (emit_event) socket.emit('leave_voice_channel', { code: wsCode });
+            // Close all peer connections
+            Object.values(voicePeers).forEach(pc => pc.close());
+            voicePeers = {};
+            voiceCurrentChannel = null;
+            document.getElementById('voice-bar').style.display = 'none';
+            renderVoiceChannels({});
+        }
+
+        function toggleVoiceMute() {
+            voiceMuted = !voiceMuted;
+            if (voiceStream) voiceStream.getAudioTracks().forEach(t => t.enabled = !voiceMuted);
+            const btn = document.getElementById('voice-mute-btn');
+            btn.textContent = voiceMuted ? '🎤 Unmute' : '🔇 Mute';
+            btn.style.background = voiceMuted ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.1)';
+        }
+
+        async function _voiceCreatePeer(peerSid, initiator) {
+            const pc = new RTCPeerConnection(VOICE_ICE);
+            voicePeers[peerSid] = pc;
+            if (voiceStream) voiceStream.getTracks().forEach(t => pc.addTrack(t, voiceStream));
+            pc.ontrack = e => {
+                const audio = document.createElement('audio');
+                audio.srcObject = e.streams[0]; audio.autoplay = true;
+                audio.id = 'voice-audio-' + peerSid;
+                document.body.appendChild(audio);
+            };
+            pc.onicecandidate = e => { if (e.candidate) socket.emit('voice_signal', { target: peerSid, type: 'ice', candidate: e.candidate }); };
+            pc.onconnectionstatechange = () => { if (['disconnected','failed','closed'].includes(pc.connectionState)) { _voiceRemovePeer(peerSid); }};
+            if (initiator) {
+                const offer = await pc.createOffer({ offerToReceiveAudio: true });
+                await pc.setLocalDescription(offer);
+                socket.emit('voice_signal', { target: peerSid, type: 'offer', sdp: pc.localDescription });
+            }
+            return pc;
+        }
+
+        function _voiceRemovePeer(sid) {
+            if (voicePeers[sid]) { voicePeers[sid].close(); delete voicePeers[sid]; }
+            const el = document.getElementById('voice-audio-' + sid); if (el) el.remove();
+        }
+
+        // Voice socket listeners (added after socket init)
+        function initVoiceListeners() {
+            socket.on('voice_channel_update', d => renderVoiceChannels(d.channels || {}));
+            socket.on('voice_peer_joined', async d => {
+                // We are existing member, initiate offer to new joiner
+                if (voiceCurrentChannel) await _voiceCreatePeer(d.sid, true);
+            });
+            socket.on('voice_peer_left', d => _voiceRemovePeer(d.sid));
+            socket.on('voice_signal', async d => {
+                const { from, type, sdp, candidate } = d;
+                if (!voiceCurrentChannel) return;
+                let pc = voicePeers[from];
+                if (type === 'offer') {
+                    if (!pc) pc = await _voiceCreatePeer(from, false);
+                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                    const ans = await pc.createAnswer();
+                    await pc.setLocalDescription(ans);
+                    socket.emit('voice_signal', { target: from, type: 'answer', sdp: pc.localDescription });
+                } else if (type === 'answer' && pc) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+                } else if (type === 'ice' && pc) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                }
+            });
+        }
+
 
         // ── Video Call & Canvas Pipeline ────────────────────────────────────────────
         let localStream = null, rawStream = null, peers = {}, inCall = false, micOn = true, camOn = true;
