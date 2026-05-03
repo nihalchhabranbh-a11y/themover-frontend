@@ -1943,7 +1943,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             document.getElementById('meet-call').style.display = 'none';
             document.getElementById('meet-lobby').style.display = 'flex';
             document.getElementById('movie-cams-sidebar').style.display = 'none';
-            document.getElementById('movie-cam-btn').textContent = 'videocam_off';
+            const movieBtn = document.getElementById('movie-cam-toggle');
+            if (movieBtn) movieBtn.textContent = 'videocam_off';
             closePip();
         }
         function mkPeer(sid, name) {
