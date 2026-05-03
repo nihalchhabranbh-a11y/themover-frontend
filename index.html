@@ -129,9 +129,13 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
 /* Voice Channels (Discord-style) */
 .voice-section { margin-top:24px; }
-.voice-section-title { font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; padding:0 4px; }
+.voice-section-title { font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; padding:0 4px; display:flex; justify-content:space-between; align-items:center; }
 .voice-channel-header { display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer; border-radius:8px; transition:background 0.15s; }
 .voice-channel-header:hover { background:rgba(255,255,255,0.06); }
+.voice-channel-header:hover .channel-gear { opacity: 1; }
+.channel-gear { margin-left:auto; opacity:0; transition:opacity 0.2s; color:var(--muted); padding:2px; }
+.channel-gear:hover { color:white; }
+
 .voice-channel-header.active { background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.3); }
 .voice-channel-name { flex:1; font-size:14px; font-weight:500; }
 .voice-channel-count { font-size:11px; color:var(--muted); background:rgba(255,255,255,0.08); padding:2px 7px; border-radius:10px; }
@@ -322,14 +326,16 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         <div class="voice-section">
             <div class="voice-section-title">
                 <span>🔊 Voice Channels</span>
+                <span class="icon" style="cursor:pointer; font-size:14px;" onclick="openCreateChannelModal()" title="Create Channel">add</span>
             </div>
             <div id="voice-channels-list"></div>
             <!-- Active voice bar (shown when you're in a channel) -->
-            <div class="voice-bar" id="voice-bar" style="display:none;">
+            <div class="voice-bar" id="voice-bar" style="display:none; flex-wrap:wrap;">
                 <span class="icon" style="color:#22c55e;font-size:18px;">mic</span>
                 <span class="vb-name" id="voice-bar-channel">General</span>
                 <button id="voice-mute-btn" onclick="toggleVoiceMute()">🔇 Mute</button>
-                <button onclick="leaveVoiceChannel()" style="background:rgba(248,113,113,0.2);color:#f87171;">✕ Leave</button>
+                <button onclick="openDeviceSettings()" style="background:rgba(255,255,255,0.1);" title="Device Settings">⚙️</button>
+                <button onclick="leaveVoiceChannel()" style="background:rgba(248,113,113,0.2);color:#f87171;">✕</button>
             </div>
             <!-- Emoji reaction buttons (shown when in voice) -->
             <div class="voice-react-bar" id="voice-react-bar" style="display:none;">
@@ -351,6 +357,49 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <div class="pip-badge"><div class="dot"></div> Live</div>
     <button class="pip-close" onclick="closePip()">×</button>
     <div id="pip-container"></div>
+</div>
+
+<!-- Channel Create Modal -->
+<div class="modal-bg" id="createChannelModal">
+    <div class="modal-sheet" style="padding: 24px;">
+        <div class="modal-header">
+            <h3>Create Voice Channel</h3>
+            <button class="modal-close" onclick="closeModal('createChannelModal')">×</button>
+        </div>
+        <input type="text" id="new-channel-name" class="dl-input" placeholder="Channel name (e.g. Gaming)" style="margin-bottom: 16px;" />
+        <button class="dl-btn" style="background:var(--primary); width:100%;" onclick="createVoiceChannel()">Create Channel</button>
+    </div>
+</div>
+
+<!-- Channel Settings Modal -->
+<div class="modal-bg" id="channelSettingsModal">
+    <div class="modal-sheet" style="padding: 24px;">
+        <div class="modal-header">
+            <h3>Edit Voice Channel</h3>
+            <button class="modal-close" onclick="closeModal('channelSettingsModal')">×</button>
+        </div>
+        <input type="hidden" id="edit-channel-oldname" />
+        <input type="text" id="edit-channel-name" class="dl-input" placeholder="Channel name" style="margin-bottom: 16px;" />
+        <div style="display:flex; gap:8px;">
+            <button class="dl-btn" style="flex:1; background:var(--primary);" onclick="saveChannelSettings()">Save Changes</button>
+            <button class="dl-btn" style="flex:1; background:rgba(248,113,113,0.2); color:#f87171;" onclick="deleteVoiceChannel()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Device Settings Modal -->
+<div class="modal-bg" id="deviceSettingsModal">
+    <div class="modal-sheet" style="padding: 24px;">
+        <div class="modal-header">
+            <h3>Voice Settings</h3>
+            <button class="modal-close" onclick="closeModal('deviceSettingsModal')">×</button>
+        </div>
+        <div style="color:var(--muted); font-size:13px; margin-bottom:8px;">Input Device</div>
+        <select id="mic-select" class="dl-input" style="appearance:auto; background:#111118; color:white; width:100%; margin-bottom: 16px; border: 1px solid var(--border);">
+            <option value="default">Default Microphone</option>
+        </select>
+        <button class="dl-btn" style="background:var(--primary); width:100%;" onclick="saveDeviceSettings()">Save Settings</button>
+    </div>
 </div>
 
 <!-- Collaborative Editor Modal -->
@@ -697,10 +746,74 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         // ── Discord Voice Channels ───────────────────────────────────────────────────
         let voiceCurrentChannel = null, voiceStream = null, voicePeers = {}, voiceMuted = false;
         let audioCtx = null, analyzer = null, dataArray = null, emoInterval = null, lastEmoTime = 0;
+        let preferredMicId = localStorage.getItem('preferredMicId') || 'default';
         const VOICE_ICE = { iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
         ]};
+
+        function openCreateChannelModal() {
+            document.getElementById('new-channel-name').value = '';
+            document.getElementById('createChannelModal').classList.add('open');
+        }
+        function createVoiceChannel() {
+            const name = document.getElementById('new-channel-name').value.trim();
+            if (name) {
+                socket.emit('create_voice_channel', { code: wsCode, channel: name });
+                closeModal('createChannelModal');
+            }
+        }
+        function openChannelSettings(e, ch) {
+            e.stopPropagation(); // don't join channel
+            document.getElementById('edit-channel-oldname').value = ch;
+            document.getElementById('edit-channel-name').value = ch;
+            document.getElementById('channelSettingsModal').classList.add('open');
+        }
+        function saveChannelSettings() {
+            const old = document.getElementById('edit-channel-oldname').value;
+            const neu = document.getElementById('edit-channel-name').value.trim();
+            if (old && neu && old !== neu) {
+                socket.emit('rename_voice_channel', { code: wsCode, old_channel: old, new_channel: neu });
+            }
+            closeModal('channelSettingsModal');
+        }
+        function deleteVoiceChannel() {
+            const ch = document.getElementById('edit-channel-oldname').value;
+            if (ch && confirm("Are you sure you want to delete this voice channel?")) {
+                socket.emit('delete_voice_channel', { code: wsCode, channel: ch });
+                closeModal('channelSettingsModal');
+            }
+        }
+        
+        async function openDeviceSettings() {
+            const select = document.getElementById('mic-select');
+            select.innerHTML = '<option value="default">Default Microphone</option>';
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const mics = devices.filter(d => d.kind === 'audioinput');
+                mics.forEach(mic => {
+                    if (mic.deviceId !== 'default' && mic.deviceId !== 'communications') {
+                        const opt = document.createElement('option');
+                        opt.value = mic.deviceId;
+                        opt.textContent = mic.label || `Microphone (${mic.deviceId.slice(0,5)})`;
+                        if (mic.deviceId === preferredMicId) opt.selected = true;
+                        select.appendChild(opt);
+                    }
+                });
+            } catch(e) { console.error('Error fetching mics:', e); }
+            document.getElementById('deviceSettingsModal').classList.add('open');
+        }
+        function saveDeviceSettings() {
+            preferredMicId = document.getElementById('mic-select').value;
+            localStorage.setItem('preferredMicId', preferredMicId);
+            closeModal('deviceSettingsModal');
+            if (voiceStream) {
+                const cur = voiceCurrentChannel;
+                leaveVoiceChannel();
+                setTimeout(() => joinVoiceChannel(cur), 500);
+            }
+        }
 
         function renderVoiceChannels(channels) {
             const el = document.getElementById('voice-channels-list');
@@ -712,6 +825,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 <span style="color:var(--muted);font-size:16px;">🔊</span>
                 <span class="voice-channel-name">${ch}</span>
                 ${members.length ? `<span class="voice-channel-count">${members.length}</span>` : ''}
+                <span class="icon channel-gear" title="Edit Channel" onclick="openChannelSettings(event, '${ch}')">settings</span>
               </div>
               ${members.length ? `<div class="voice-members-list">${members.map(m =>
                 `<div class="voice-member-item"><div class="v-dot"></div>${m.name}</div>`).join('')}</div>` : ''}
@@ -722,7 +836,15 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             if (voiceCurrentChannel === channel) { leaveVoiceChannel(); return; }
             // Get mic
             try {
-                if (!voiceStream) voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                if (!voiceStream) {
+                    try {
+                        const constraints = { audio: preferredMicId === 'default' ? true : { deviceId: { exact: preferredMicId } }, video: false };
+                        voiceStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch(e) {
+                        // Fallback
+                        voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    }
+                }
                 
                 // Init audio analyzer for auto-emotions
                 if (!audioCtx) {
@@ -860,6 +982,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 if (voiceCurrentChannel) await _voiceCreatePeer(d.sid, true);
             });
             socket.on('voice_peer_left', d => _voiceRemovePeer(d.sid));
+            socket.on('force_voice_leave', () => {
+                leaveVoiceChannel();
+                alert('The channel you were in was modified or deleted.');
+            });
             socket.on('voice_reaction', d => showFloatingEmoji(d.emoji));
             socket.on('voice_signal', async d => {
                 const { from, type, sdp, candidate } = d;
