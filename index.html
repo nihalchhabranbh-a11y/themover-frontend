@@ -898,20 +898,38 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         
         // ── Movie Box ───────────────────────────────────────────────────────────────
         let movieSyncing = false;
+        let ytPlayer = null;        // YouTube IFrame API player instance
+        let ytPlayerReady = false;  // Is the YT player ready to accept commands
+        let currentMovieType = null; // 'youtube' | 'direct'
         
-        function getYouTubeEmbedUrl(url) {
-            // Handles youtu.be/ID, youtube.com/watch?v=ID, youtube.com/shorts/ID
+        // Load YouTube IFrame API script once
+        (function() {
+            if (!window.YT) {
+                const tag = document.createElement('script');
+                tag.src = 'https://www.youtube.com/iframe_api';
+                document.head.appendChild(tag);
+            }
+        })();
+        
+        // Called by YouTube API when it's ready
+        window.onYouTubeIframeAPIReady = function() {
+            ytPlayerReady = true;
+        };
+        
+        function getYouTubeVideoId(url) {
             const patterns = [
                 /youtu\.be\/([a-zA-Z0-9_-]{11})/,
                 /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
                 /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
                 /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
             ];
-            for (const p of patterns) {
-                const m = url.match(p);
-                if (m) return `https://www.youtube.com/embed/${m[1]}?autoplay=1&enablejsapi=1`;
-            }
+            for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
             return null;
+        }
+        
+        function getYouTubeEmbedUrl(url) {
+            const id = getYouTubeVideoId(url);
+            return id ? `https://www.youtube.com/embed/${id}?enablejsapi=1&autoplay=1&origin=${location.origin}` : null;
         }
         
         function getVimeoEmbedUrl(url) {
@@ -923,25 +941,53 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const url = forceUrl || document.getElementById('movie-url').value.trim();
             if (!url) return;
             const player = document.getElementById('movie-player');
-            const iframe = document.getElementById('movie-iframe');
+            const iframeEl = document.getElementById('movie-iframe');
             const placeholder = document.getElementById('movie-placeholder');
             
-            // Hide both first
             player.style.display = 'none';
-            iframe.style.display = 'none';
+            iframeEl.style.display = 'none';
             placeholder.style.display = 'none';
             
-            const ytEmbed = getYouTubeEmbedUrl(url);
+            const ytVideoId = getYouTubeVideoId(url);
             const vimeoEmbed = getVimeoEmbedUrl(url);
             
-            if (ytEmbed) {
-                iframe.src = ytEmbed;
-                iframe.style.display = 'block';
+            if (ytVideoId) {
+                currentMovieType = 'youtube';
+                iframeEl.style.display = 'block';
+                
+                // Destroy old YT player if exists
+                if (ytPlayer) { try { ytPlayer.destroy(); } catch(e) {} ytPlayer = null; }
+                
+                // Ensure iframe has a clean id for the API to target
+                iframeEl.id = 'movie-iframe';
+                
+                const createPlayer = () => {
+                    ytPlayer = new YT.Player('movie-iframe', {
+                        videoId: ytVideoId,
+                        playerVars: { autoplay: 1, controls: 1, rel: 0 },
+                        events: {
+                            onStateChange: (event) => {
+                                if (movieSyncing) return;
+                                if (event.data === YT.PlayerState.PLAYING) {
+                                    socket.emit('movie_action', { code: wsCode, action: 'play', time: ytPlayer.getCurrentTime() });
+                                } else if (event.data === YT.PlayerState.PAUSED) {
+                                    socket.emit('movie_action', { code: wsCode, action: 'pause', time: ytPlayer.getCurrentTime() });
+                                }
+                            }
+                        }
+                    });
+                };
+                
+                // Wait for the YT API to be ready
+                if (window.YT && window.YT.Player) { createPlayer(); }
+                else { window.onYouTubeIframeAPIReady = () => { ytPlayerReady = true; createPlayer(); }; }
+                
             } else if (vimeoEmbed) {
-                iframe.src = vimeoEmbed;
-                iframe.style.display = 'block';
+                currentMovieType = 'direct'; // Vimeo sync not supported via API here
+                iframeEl.src = vimeoEmbed;
+                iframeEl.style.display = 'block';
             } else {
-                // Direct video file (.mp4, .webm, etc.)
+                currentMovieType = 'direct';
                 player.src = url;
                 player.style.display = 'block';
             }
@@ -2185,13 +2231,27 @@ initSocket = function() {
             document.getElementById('movie-url').value = d.url;
             loadMovie(d.url);
         } else if (d.action === 'play') {
-            if (Math.abs(p.currentTime - d.time) > 1) p.currentTime = d.time;
-            p.play().catch(e => console.log('Autoplay blocked', e));
+            if (currentMovieType === 'youtube' && ytPlayer && ytPlayer.seekTo) {
+                if (Math.abs(ytPlayer.getCurrentTime() - d.time) > 1) ytPlayer.seekTo(d.time, true);
+                ytPlayer.playVideo();
+            } else {
+                if (Math.abs(p.currentTime - d.time) > 1) p.currentTime = d.time;
+                p.play().catch(e => console.log('Autoplay blocked', e));
+            }
         } else if (d.action === 'pause') {
-            p.currentTime = d.time;
-            p.pause();
+            if (currentMovieType === 'youtube' && ytPlayer && ytPlayer.pauseVideo) {
+                ytPlayer.seekTo(d.time, true);
+                ytPlayer.pauseVideo();
+            } else {
+                p.currentTime = d.time;
+                p.pause();
+            }
         } else if (d.action === 'seek') {
-            p.currentTime = d.time;
+            if (currentMovieType === 'youtube' && ytPlayer && ytPlayer.seekTo) {
+                ytPlayer.seekTo(d.time, true);
+            } else {
+                p.currentTime = d.time;
+            }
         }
         setTimeout(() => movieSyncing = false, 500);
     });
