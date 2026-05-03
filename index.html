@@ -307,15 +307,18 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         flex-direction: column;
         height: calc(100vh - 56px - 64px) !important;
     }
-    #meet-lobby { flex: 1; }
     #meet-call {
-        position: absolute !important;
-        top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+        position: fixed !important;
+        top: 56px !important; /* Just below header */
+        bottom: calc(64px + env(safe-area-inset-bottom)) !important; /* Just above bottom nav */
+        left: 0 !important; right: 0 !important;
+        width: 100vw !important;
+        height: auto !important;
         /* Do NOT set display here — JS toggles display:none/flex */
         flex-direction: column !important;
         overflow: hidden !important;
+        z-index: 100 !important; /* Ensure it stays above everything else in the panel */
+        background: #111417 !important;
     }
     /* Only reset padding inside the meet panel's video grid, NOT globally */
     #panel-meet #video-grid { padding: 0 !important; gap: 0 !important; height: 100%; }
