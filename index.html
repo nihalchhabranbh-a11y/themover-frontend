@@ -29,6 +29,17 @@
 }
 body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
+/* Server Sidebar */
+#server-sidebar { width: 72px; min-width: 72px; background-color: #000; border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 12px; overflow-y: auto; z-index: 15; }
+.server-icon { width: 48px; height: 48px; background-color: #111118; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; cursor: pointer; transition: all 0.2s; position: relative; color: white; text-decoration: none; }
+.server-icon:hover { border-radius: 16px; background-color: var(--primary); }
+.server-icon.active { border-radius: 16px; background-color: var(--primary); }
+.server-icon.active::before { content: ''; position: absolute; left: -14px; top: 50%; transform: translateY(-50%); width: 8px; height: 40px; background: white; border-radius: 0 4px 4px 0; }
+.server-icon:hover::before { content: ''; position: absolute; left: -14px; top: 50%; transform: translateY(-50%); width: 8px; height: 20px; background: white; border-radius: 0 4px 4px 0; }
+.server-icon.add-btn { color: #22c55e; background-color: #111118; font-size: 24px; font-weight: 400; }
+.server-icon.add-btn:hover { background-color: #22c55e; color: white; }
+.server-sep { width: 32px; height: 2px; background: var(--border); border-radius: 2px; }
+
 /* Sidebar */
 #sidebar { width: 260px; min-width: 260px; background-color: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; z-index: 10; }
 .brand { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
@@ -202,6 +213,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 </head>
 <body>
 
+<div id="server-sidebar">
+    <!-- Server icons will be injected here -->
+</div>
+
 <div id="sidebar">
     <div class="brand">🚀 TheMover <span class="badge">v2</span></div>
     
@@ -360,6 +375,19 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <div id="pip-container"></div>
 </div>
 
+<!-- Add Server Modal -->
+<div class="modal-bg" id="addServerModal">
+    <div class="modal-sheet" style="padding: 24px;">
+        <div class="modal-header">
+            <h3>Join or Create Workspace</h3>
+            <button class="modal-close" onclick="closeModal('addServerModal')">×</button>
+        </div>
+        <p style="color:var(--muted); font-size:14px; margin-bottom:16px;">Enter an existing code to join, or type a new name to create one.</p>
+        <input type="text" id="add-server-code" class="dl-input" placeholder="e.g. GAMING123" style="margin-bottom: 16px;" />
+        <button class="dl-btn" style="background:var(--primary); width:100%;" onclick="joinServerFromModal()">Join Server</button>
+    </div>
+</div>
+
 <!-- Channel Create Modal -->
 <div class="modal-bg" id="createChannelModal">
     <div class="modal-sheet" style="padding: 24px;">
@@ -496,6 +524,42 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             }, 250);
         }
 
+        // ── Saved Servers ───────────────────────────────────────────────────────────
+        let savedServers = JSON.parse(localStorage.getItem('savedServers') || '[]');
+
+        function saveCurrentServer() {
+            if (!wsCode) return;
+            const existing = savedServers.find(s => s.code === wsCode);
+            if (existing) { existing.name = wsName || wsCode; }
+            else { savedServers.push({ code: wsCode, name: wsName || wsCode }); }
+            localStorage.setItem('savedServers', JSON.stringify(savedServers));
+            renderServerSidebar();
+        }
+
+        function renderServerSidebar() {
+            const sb = document.getElementById('server-sidebar');
+            if (!sb) return;
+            // Home button
+            let html = `<a href="/workspace.html" class="server-icon" style="background:var(--card); font-size:24px;">🏠</a>`;
+            html += `<div class="server-sep"></div>`;
+            // Saved servers
+            savedServers.forEach(s => {
+                const initial = s.name.substring(0, 1).toUpperCase();
+                const active = s.code === wsCode ? 'active' : '';
+                html += `<a href="/?w=${s.code}" class="server-icon ${active}" title="${s.name}">${initial}</a>`;
+            });
+            // Add button
+            html += `<div class="server-icon add-btn" title="Add Server" onclick="document.getElementById('addServerModal').classList.add('open')">+</div>`;
+            sb.innerHTML = html;
+        }
+
+        function joinServerFromModal() {
+            const code = document.getElementById('add-server-code').value.trim();
+            if (code) {
+                location.href = `/?w=${encodeURIComponent(code)}`;
+            }
+        }
+
         // ── Workspace Init ──────────────────────────────────────────────────────────
         window.addEventListener('DOMContentLoaded', () => {
             const p = new URLSearchParams(location.search);
@@ -510,6 +574,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const uNameEl = document.getElementById('user-name-display'); if (uNameEl) uNameEl.textContent = userName;
             const uAvatarEl = document.getElementById('user-avatar-initial'); if (uAvatarEl) uAvatarEl.textContent = userName.charAt(0).toUpperCase();
             document.title = wsName + ' · TheMover';
+            
+            saveCurrentServer();
+            
             initSocket(); loadFiles();
             // SW
             if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
