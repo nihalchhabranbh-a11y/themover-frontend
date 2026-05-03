@@ -306,7 +306,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     #meet-lobby { flex: 1; }
     #meet-call {
         flex: 1 !important;
-        display: flex !important;
+        /* Do NOT set display here — JS toggles display:none/flex */
         flex-direction: column !important;
         height: auto !important;
         overflow: hidden !important;
