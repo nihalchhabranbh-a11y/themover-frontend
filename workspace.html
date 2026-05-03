@@ -179,6 +179,10 @@
     <p>Give your workspace a name — your team will join using an invite code.</p>
     <input type="text" id="createName" placeholder="e.g. Design Team, My Crew…" maxlength="40"/>
     <input type="text" id="yourName" placeholder="Your display name" maxlength="30"/>
+    <details style="margin-bottom:4px;">
+      <summary style="font-size:13px; color:var(--muted,#aaa); cursor:pointer; user-select:none;">🔒 Set a password (optional)</summary>
+      <input type="password" id="createPassword" placeholder="Leave empty for no password" maxlength="64" style="margin-top:8px;"/>
+    </details>
     <button class="btn btn-primary" onclick="createWorkspace()">
       <span>🚀</span> Create Workspace
     </button>
@@ -206,6 +210,7 @@
       oninput="this.value = this.value.toUpperCase()"
       onkeydown="if(event.key==='Enter') joinWorkspace()"/>
     <input type="text" id="joinName" placeholder="Your display name" maxlength="30"/>
+    <input type="password" id="joinPassword" placeholder="🔒 Password (if required)" maxlength="64" style="display:none;"/>
     <button class="btn btn-secondary" id="join-btn" onclick="joinWorkspace()">
       <span>🔑</span> Join Workspace
     </button>
@@ -320,8 +325,9 @@
   async function joinWorkspace() {
     const code = document.getElementById('joinCode').value.trim().toUpperCase();
     const userName = document.getElementById('joinName').value.trim();
+    const password = document.getElementById('joinPassword').value.trim();
     const err = document.getElementById('joinError');
-    const btn = document.getElementById('join-btn');  // Fixed: direct id, not broken :last-of-type
+    const btn = document.getElementById('join-btn');
     err.style.display = 'none';
 
     if (code.length < 4) { err.textContent = 'Please enter a valid code.'; err.style.display = 'block'; return; }
@@ -330,7 +336,6 @@
     btn.textContent = '⏳ Joining...';
     btn.disabled = true;
 
-    // Try to fetch workspace name (8s timeout for Render cold start)
     let wsName = code;
     try {
       const ctrl = new AbortController();
@@ -340,6 +345,19 @@
       if (res.ok) {
         const data = await res.json();
         if (data.name) wsName = data.name;
+        // If workspace is locked, show password field
+        if (data.locked) {
+          const pwField = document.getElementById('joinPassword');
+          pwField.style.display = 'block';
+          if (!password) {
+            err.textContent = '🔒 This workspace is password protected. Enter the password.';
+            err.style.display = 'block';
+            btn.textContent = '🔑 Join Workspace';
+            btn.disabled = false;
+            pwField.focus();
+            return;
+          }
+        }
       }
     } catch(e) {
       console.warn('Workspace lookup timed out, joining anyway.');
@@ -348,6 +366,7 @@
     localStorage.setItem('ws_code', code);
     localStorage.setItem('ws_name', wsName);
     localStorage.setItem('user_name', userName);
+    if (password) localStorage.setItem('ws_password_' + code, password);
     window.location.href = `/index.html?w=${code}`;
   }
 </script>

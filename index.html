@@ -218,21 +218,89 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 .mobile-menu-btn .icon { font-size: 24px; }
 
 @media (max-width: 768px) {
-    .mobile-menu-btn { display: block; }
-    
-    #server-sidebar { display: none; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; box-shadow: 4px 0 16px rgba(0,0,0,0.5); }
-    #sidebar { display: none; position: fixed; left: 72px; top: 0; bottom: 0; z-index: 99; width: calc(100vw - 72px); border-right: none; box-shadow: 4px 0 16px rgba(0,0,0,0.5); }
-    
-    body.show-sidebar #server-sidebar { display: flex; }
-    body.show-sidebar #sidebar { display: flex; }
-    
-    .header { padding: 0 16px; }
-    .chat-input-area { padding: 12px; flex-direction: column; }
-    .chat-input { width: 100%; border-radius: 8px; }
-    .chat-btn { width: 100%; }
-    
-    .panel { padding: 16px; }
+    .mobile-menu-btn { display: none !important; } /* hide old hamburger — replaced by bottom nav */
+
+    /* ── Sidebar hidden on mobile — replaced by bottom nav ── */
+    #server-sidebar { display: none !important; }
+    #sidebar { display: none !important; }
+
+    /* ── Main layout fills full screen ── */
+    .app-layout { flex-direction: column; }
+    .main-content { padding: 0; border-radius: 0; }
+    .header { padding: 0 16px; min-height: 56px; }
+
+    /* ── Bottom Tab Navigation Bar ── */
+    #mobile-bottom-nav {
+        display: flex !important;
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+        background: rgba(10,10,26,0.97);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255,255,255,0.08);
+        padding: 4px 0 max(4px, env(safe-area-inset-bottom));
+    }
+
+    /* ── Panels take full width with bottom nav padding ── */
+    .panel { padding: 12px; padding-bottom: 80px; }
+
+    /* ── Chat layout on mobile ── */
+    .chat-input-area { padding: 10px 12px; flex-wrap: wrap; gap: 8px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    .chat-input { width: 100%; border-radius: 10px; }
+    .chat-btn { width: 100%; border-radius: 10px; }
+
+    /* ── Movie Box on mobile: stack vertically, cameras below ── */
+    #panel-movie .main-content-row { flex-direction: column !important; }
+    #movie-cams-sidebar {
+        width: 100% !important;
+        height: 130px !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        border-radius: 10px !important;
+    }
+    #movie-cams-grid {
+        flex-direction: row !important;
+        padding: 6px !important;
+        gap: 6px !important;
+    }
+    .movie-cam-tile { height: 100% !important; width: 110px !important; flex-shrink: 0 !important; }
+
+    /* ── Larger tap targets ── */
+    .nav-btn, .dl-btn, .movie-react-btn, button { min-height: 44px; }
+    .movie-react-btn { font-size: 22px !important; padding: 6px 10px !important; }
+
+    /* ── Reaction bar wraps on small phones ── */
+    [style*="movie-reactions"] { flex-wrap: wrap; gap: 4px; }
 }
+
+/* ── Bottom Tab Nav (hidden on desktop) ── */
+#mobile-bottom-nav {
+    display: none;
+}
+#mobile-bottom-nav .mnav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: color 0.15s;
+}
+#mobile-bottom-nav .mnav-btn .icon {
+    font-size: 22px;
+    font-family: 'Material Symbols Outlined';
+}
+#mobile-bottom-nav .mnav-btn.active {
+    color: var(--primary);
+}
+
 
 </style>
 </head>
@@ -426,6 +494,15 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         <div class="dz-sub">People online in this workspace.</div>
         <div id="members-list" style="margin-top:16px;"></div>
 
+        <!-- Admin: Password Lock Section -->
+        <div id="admin-password-section" style="display:none; margin-top:20px; padding:16px; background:rgba(255,255,255,0.04); border-radius:12px; border:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:13px; font-weight:700; margin-bottom:10px;">🔒 Workspace Password</div>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Lock this workspace so only people with the password can join.</div>
+            <div id="ws-lock-status" style="font-size:12px; margin-bottom:10px; color:#22c55e;"></div>
+            <input type="password" id="new-ws-password" placeholder="New password (empty = remove)" maxlength="64" style="width:100%; box-sizing:border-box; margin-bottom:8px;"/>
+            <button class="dl-btn" style="background:var(--primary); width:100%;" onclick="setWorkspacePassword()">🔒 Save Password</button>
+        </div>
+
         <!-- Discord-style Voice Channels -->
         <div class="voice-section">
             <div class="voice-section-title">
@@ -456,7 +533,40 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     </div>
 </div>
 
+<!-- Mobile Bottom Nav Bar (hidden on desktop via CSS) -->
+<div id="mobile-bottom-nav">
+    <button class="mnav-btn active" id="mnav-files" onclick="switchTab('files')">
+        <span class="icon">folder</span>Files
+    </button>
+    <button class="mnav-btn" id="mnav-chat" onclick="switchTab('chat')">
+        <span class="icon">chat</span>Chat
+    </button>
+    <button class="mnav-btn" id="mnav-meet" onclick="switchTab('meet')">
+        <span class="icon">videocam</span>Meet
+    </button>
+    <button class="mnav-btn" id="mnav-movie" onclick="switchTab('movie')">
+        <span class="icon">movie</span>Movie
+    </button>
+    <button class="mnav-btn" id="mnav-members" onclick="switchTab('members')">
+        <span class="icon">group</span>Members
+    </button>
+</div>
+
+<!-- Password Prompt Modal (shown when workspace is password-protected) -->
+<div id="pw-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center;">
+    <div style="background:#1a1a2e; border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:32px; max-width:360px; width:90%; text-align:center;">
+        <div style="font-size:48px; margin-bottom:16px;">🔒</div>
+        <div style="font-size:18px; font-weight:800; margin-bottom:8px;">Password Required</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:20px;">This workspace is password protected.<br>Enter the password to continue.</div>
+        <input type="password" id="pw-modal-input" placeholder="Enter workspace password" maxlength="64" style="width:100%; box-sizing:border-box; margin-bottom:12px; text-align:center;" onkeypress="if(event.key==='Enter') submitPwModal()"/>
+        <div id="pw-modal-error" style="color:#f87171; font-size:12px; margin-bottom:12px; display:none;">❌ Wrong password. Try again.</div>
+        <button class="dl-btn" style="background:var(--primary); width:100%;" onclick="submitPwModal()">🔓 Enter Workspace</button>
+        <button class="dl-btn" style="background:rgba(255,255,255,0.07); width:100%; margin-top:8px;" onclick="window.location.href='/workspace.html'">← Back</button>
+    </div>
+</div>
+
 <!-- PiP Video -->
+
 <div class="pip-video" id="pip-video">
     <div class="pip-badge"><div class="dot"></div> Live</div>
     <button class="pip-close" onclick="closePip()">×</button>
@@ -735,7 +845,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             socket = io(WS_URL);
             socket.on('connect', () => {
                 let userAvatar = localStorage.getItem('user_avatar') || '';
-                socket.emit('join_workspace', { code: wsCode, name: userName, avatar: userAvatar });
+                const wsPassword = localStorage.getItem('ws_password_' + wsCode) || '';
+                socket.emit('join_workspace', { code: wsCode, name: userName, avatar: userAvatar, password: wsPassword });
                 renderVoiceChannels({});  // Show default channels immediately
             });
             socket.on('chat_history', msgs => { if (msgs.length) { document.getElementById('chat-messages').innerHTML = ''; msgs.forEach(m => appendMsg(m, false)); } });
@@ -1126,15 +1237,27 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 }
             }
             
+            // Check if current user is admin (first member in the list)
+            const isAdmin = uniqueMembers.length > 0 && uniqueMembers[0].name === userName;
+            const pwSection = document.getElementById('admin-password-section');
+            if (pwSection) {
+                pwSection.style.display = isAdmin ? 'block' : 'none';
+            }
+            
             document.getElementById('members-list').innerHTML = uniqueMembers.map(m => {
                 let avatarHtml = m.avatar 
                     ? `<img src="${m.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`
                     : m.name.charAt(0).toUpperCase();
+                const adminBadge = (m.name === uniqueMembers[0].name) ? '<span style="font-size:10px; background:var(--primary); color:white; padding:2px 6px; border-radius:4px; margin-left:6px;">Admin</span>' : '';
                 return `
     <div class="member-item">
       <div class="member-avatar" style="${m.avatar ? 'background:transparent;' : ''}">${avatarHtml}</div>
-      <div><div class="member-name">${m.name}</div>${m.name === userName ? '<div class="member-you">You</div>' : ''}</div>
-      <div class="online-dot"></div>
+      <div style="display:flex; align-items:center;">
+        <div class="member-name">${m.name}</div>
+        ${adminBadge}
+        ${m.name === userName ? '<div class="member-you" style="margin-left:6px;">You</div>' : ''}
+      </div>
+      <div class="online-dot" style="margin-left:auto;"></div>
     </div>`;
             }).join('');
         }
@@ -2352,6 +2475,55 @@ initSocket = function() {
     socket.on('movie_reaction', d => {
         showMovieReaction(d.emoji, d.name);
     });
+
+    // Password / Auth
+    socket.on('auth_error', d => {
+        const modal = document.getElementById('pw-modal');
+        modal.style.display = 'flex';
+        document.getElementById('pw-modal-error').style.display =
+            d.reason === 'wrong_password' ? 'block' : 'none';
+        setTimeout(() => document.getElementById('pw-modal-input').focus(), 100);
+    });
+
+    socket.on('workspace_locked', d => {
+        const statusEl = document.getElementById('ws-lock-status');
+        if (statusEl) {
+            statusEl.textContent = d.locked ? '🔒 Workspace is currently password protected.' : '🔓 Workspace is unlocked (no password).';
+            statusEl.style.color = d.locked ? '#f59e0b' : '#22c55e';
+        }
+    });
+
+    socket.on('notify', d => {
+        // Show a brief toast notification
+        const t = document.createElement('div');
+        t.textContent = d.msg;
+        t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:floatMovieEmoji 3s ease forwards;pointer-events:none;';
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    });
+};
+
+// ── Password Functions ──────────────────────────────────────────────────────
+window.submitPwModal = function() {
+    const pw = document.getElementById('pw-modal-input').value;
+    if (!pw) return;
+    localStorage.setItem('ws_password_' + wsCode, pw);
+    document.getElementById('pw-modal').style.display = 'none';
+    // Retry joining with the password
+    const wsPassword = pw;
+    const userAvatar = localStorage.getItem('user_avatar') || '';
+    socket.emit('join_workspace', { code: wsCode, name: userName, avatar: userAvatar, password: wsPassword });
+};
+
+window.setWorkspacePassword = function() {
+    const pw = document.getElementById('new-ws-password').value.trim();
+    socket.emit('set_workspace_password', { code: wsCode, password: pw });
+    document.getElementById('new-ws-password').value = '';
+    if (pw) {
+        localStorage.setItem('ws_password_' + wsCode, pw);
+    } else {
+        localStorage.removeItem('ws_password_' + wsCode);
+    }
 };
 
 </script>
