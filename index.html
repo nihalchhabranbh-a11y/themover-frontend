@@ -310,20 +310,21 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     #meet-lobby { flex: 1; }
     #meet-call {
         flex: 1 !important;
+        height: 100% !important;
         /* Do NOT set display here — JS toggles display:none/flex */
         flex-direction: column !important;
-        height: auto !important;
         overflow: hidden !important;
     }
     /* Only reset padding inside the meet panel's video grid, NOT globally */
-    #panel-meet #video-grid { padding: 0 !important; gap: 0 !important; }
+    #panel-meet #video-grid { padding: 0 !important; gap: 0 !important; height: 100%; }
     
     #video-grid.whatsapp-layout {
         display: block !important;
-        position: relative !important;
-        flex: 1 !important;
-        height: 0 !important; /* let flex-grow handle height */
-        min-height: 0 !important;
+        position: absolute !important;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 1 !important;
     }
     /* The BIG video fills the flex area */
     #video-grid.whatsapp-layout .video-tile.wapp-big {
