@@ -402,7 +402,18 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 </div>
                 <!-- Watchers Cam Sidebar -->
                 <div id="movie-cams-sidebar" style="width:220px; background:#0a0a1a; border-radius:14px; border:1px solid rgba(255,255,255,0.05); display:none; flex-direction:column; overflow:hidden;">
-                    <div style="padding:10px 14px; background:#111; font-size:12px; font-weight:700; letter-spacing:0.5px; border-bottom:1px solid rgba(255,255,255,0.05);">📹 Watchers</div>
+                    <!-- Sidebar header with controls -->
+                    <div style="padding:10px 12px; background:#111; border-bottom:1px solid rgba(255,255,255,0.06);">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                            <span style="font-size:12px; font-weight:700; letter-spacing:0.5px;">📹 Watchers</span>
+                            <button onclick="toggleMovieMic()" id="movie-mic-btn" title="Mute/Unmute your mic" style="background:rgba(255,255,255,0.1); border:none; border-radius:8px; padding:4px 8px; cursor:pointer; color:var(--text); font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">mic</button>
+                        </div>
+                        <!-- Cam size slider -->
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:10px; color:var(--muted);">Size</span>
+                            <input type="range" min="80" max="200" value="120" id="movie-cam-size" oninput="adjustMovieCamSize(this.value)" style="flex:1; accent-color:var(--primary); height:3px; cursor:pointer;">
+                        </div>
+                    </div>
                     <div id="movie-cams-grid" style="flex:1; padding:8px; display:flex; flex-direction:column; gap:8px; overflow-y:auto;"></div>
                 </div>
             </div>
@@ -1047,12 +1058,37 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const el = document.createElement('div');
             el.className = 'floating-movie-emoji';
             el.textContent = emoji;
-            // Random horizontal position
             el.style.left = (10 + Math.random() * 80) + '%';
             overlay.appendChild(el);
-            // Remove after animation
             setTimeout(() => el.remove(), 2600);
         }
+        
+        // ── Movie Cam Controls (zero latency) ─────────────────────────────────
+        let movieMicMuted = false;
+        
+        window.toggleMovieMic = function() {
+            movieMicMuted = !movieMicMuted;
+            // Zero-latency: directly toggle the audio track, no reconnection
+            if (rawStream) {
+                rawStream.getAudioTracks().forEach(t => { t.enabled = !movieMicMuted; });
+            }
+            if (localStream) {
+                localStream.getAudioTracks().forEach(t => { t.enabled = !movieMicMuted; });
+            }
+            const btn = document.getElementById('movie-mic-btn');
+            if (btn) {
+                btn.textContent = movieMicMuted ? 'mic_off' : 'mic';
+                btn.style.color = movieMicMuted ? 'var(--danger)' : 'var(--text)';
+                btn.style.background = movieMicMuted ? 'rgba(248,113,113,0.2)' : 'rgba(255,255,255,0.1)';
+            }
+        };
+        
+        window.adjustMovieCamSize = function(size) {
+            const tiles = document.querySelectorAll('#movie-cams-grid .movie-cam-tile');
+            tiles.forEach(t => {
+                t.style.height = size + 'px';
+            });
+        };
         
         const player = document.getElementById('movie-player');
         player.addEventListener('play', () => { if (!movieSyncing) socket.emit('movie_action', { code: wsCode, action: 'play', time: player.currentTime }); });
@@ -1754,19 +1790,30 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const g = document.getElementById(gridId);
             if (isMovie) document.getElementById('movie-cams-sidebar').style.display = 'flex';
             let tile = document.getElementById('vtile-' + sid);
-            if (!tile) { 
-                tile = document.createElement('div'); 
-                tile.className = 'video-tile'; 
-                tile.id = 'vtile-' + sid; 
+            if (!tile) {
+                tile = document.createElement('div');
+                tile.id = 'vtile-' + sid;
                 tile.style.position = 'relative';
                 
-                let rcBtnHtml = '';
-                if (!local) {
-                    rcBtnHtml = `<button class="dl-btn rc-btn" style="position:absolute; top:8px; right:8px; z-index:10; background:rgba(0,0,0,0.6); padding:4px 8px; font-size:11px;" onclick="toggleRC('${sid}')">🎮 Take Control</button>`;
+                if (isMovie) {
+                    // Compact movie cam tile
+                    const camSize = document.getElementById('movie-cam-size')?.value || 120;
+                    tile.className = 'movie-cam-tile video-tile';
+                    tile.style.cssText = `position:relative; border-radius:12px; overflow:hidden; background:#111; height:${camSize}px; flex-shrink:0; border:2px solid rgba(255,255,255,0.07);`;
+                    tile.innerHTML = `
+                        <video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:cover; ${local && videoFilter !== '360' ? 'transform:scaleX(-1);' : ''}"></video>
+                        <div style="position:absolute; bottom:0; left:0; right:0; padding:4px 8px; background:linear-gradient(transparent,rgba(0,0,0,0.7)); font-size:11px; font-weight:600;">${name}${local ? ' 🎙' : ''}</div>
+                    `;
+                } else {
+                    // Full-size meet tile
+                    tile.className = 'video-tile';
+                    let rcBtnHtml = '';
+                    if (!local) {
+                        rcBtnHtml = `<button class="dl-btn rc-btn" style="position:absolute; top:8px; right:8px; z-index:10; background:rgba(0,0,0,0.6); padding:4px 8px; font-size:11px;" onclick="toggleRC('${sid}')">🎮 Take Control</button>`;
+                    }
+                    tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="pointer-events: ${local ? 'none' : 'auto'}; outline:none; ${local && videoFilter !== '360' ? 'transform: scaleX(-1);' : ''}" tabindex="0"></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>${rcBtnHtml}`;
                 }
-                
-                tile.innerHTML = `<video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="pointer-events: ${local ? 'none' : 'auto'}; outline:none; ${local && videoFilter !== '360' ? 'transform: scaleX(-1);' : ''}" tabindex="0"></video><div class="tile-name">${name}${local ? ' (You)' : ''}</div>${rcBtnHtml}`;
-                g.appendChild(tile); 
+                g.appendChild(tile);
                 
                 if (!local) {
                     const vid = document.getElementById('vid-' + sid);
