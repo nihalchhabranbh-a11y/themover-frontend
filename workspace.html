@@ -259,6 +259,20 @@
       
       document.getElementById('yourName').value = payload.name;
       document.getElementById('joinName').value = payload.name;
+      
+      // If there's an invite link in URL, let them stay to click "Join"
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('join')) return;
+
+      // Auto-Redirect to last server or saved server
+      const savedServers = JSON.parse(localStorage.getItem('savedServers') || '[]');
+      const lastCode = localStorage.getItem('ws_code');
+      
+      if (lastCode) {
+          window.location.href = `/?w=${lastCode}`;
+      } else if (savedServers.length > 0) {
+          window.location.href = `/?w=${savedServers[0].code}`;
+      }
   }
 
   async function createWorkspace() {
