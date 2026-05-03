@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Allow: /workspace.html
+
+Sitemap: https://themover-frontend.vercel.app/sitemap.xml
