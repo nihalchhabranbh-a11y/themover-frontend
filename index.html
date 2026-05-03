@@ -369,7 +369,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             <div style="flex:1; display:flex; gap:16px; min-height:0;">
                 <div style="flex:1; background:#000; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative;">
                     <video id="movie-player" controls style="width:100%; height:100%; object-fit:contain; outline:none; display:none;"></video>
-                    <iframe id="movie-iframe" style="width:100%; height:100%; border:none; display:none;" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                    <!-- YT/Vimeo embeds go inside this wrapper; the API replaces it internally -->
+                    <div id="movie-embed-container" style="width:100%; height:100%; display:none; position:absolute; inset:0;"></div>
                     <div id="movie-placeholder" style="color:var(--muted); font-size:14px; text-align:center; padding:24px;">
                         <div style="font-size:48px; margin-bottom:12px;">🍿</div>
                         <div style="font-weight:700; font-size:16px; margin-bottom:8px;">Movie Box</div>
@@ -938,14 +939,16 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         }
         
         window.loadMovie = function(forceUrl) {
-            const url = forceUrl || document.getElementById('movie-url').value.trim();
+            const url = forceUrl || (document.getElementById('movie-url') && document.getElementById('movie-url').value.trim());
             if (!url) return;
             const player = document.getElementById('movie-player');
-            const iframeEl = document.getElementById('movie-iframe');
+            const embedContainer = document.getElementById('movie-embed-container');
             const placeholder = document.getElementById('movie-placeholder');
+            if (!player || !embedContainer || !placeholder) return; // guard
             
             player.style.display = 'none';
-            iframeEl.style.display = 'none';
+            embedContainer.style.display = 'none';
+            embedContainer.innerHTML = ''; // clear previous embed
             placeholder.style.display = 'none';
             
             const ytVideoId = getYouTubeVideoId(url);
@@ -953,17 +956,22 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             
             if (ytVideoId) {
                 currentMovieType = 'youtube';
-                iframeEl.style.display = 'block';
+                embedContainer.style.display = 'block';
                 
-                // Destroy old YT player if exists
+                // Destroy old YT player cleanly
                 if (ytPlayer) { try { ytPlayer.destroy(); } catch(e) {} ytPlayer = null; }
                 
-                // Ensure iframe has a clean id for the API to target
-                iframeEl.id = 'movie-iframe';
+                // Create a fresh div for the YT API to target (it replaces this div with an iframe)
+                const ytDiv = document.createElement('div');
+                ytDiv.id = 'yt-player-target';
+                ytDiv.style = 'width:100%; height:100%;';
+                embedContainer.appendChild(ytDiv);
                 
                 const createPlayer = () => {
-                    ytPlayer = new YT.Player('movie-iframe', {
+                    ytPlayer = new YT.Player('yt-player-target', {
                         videoId: ytVideoId,
+                        width: '100%',
+                        height: '100%',
                         playerVars: { autoplay: 1, controls: 1, rel: 0 },
                         events: {
                             onStateChange: (event) => {
@@ -978,14 +986,13 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     });
                 };
                 
-                // Wait for the YT API to be ready
                 if (window.YT && window.YT.Player) { createPlayer(); }
                 else { window.onYouTubeIframeAPIReady = () => { ytPlayerReady = true; createPlayer(); }; }
                 
             } else if (vimeoEmbed) {
-                currentMovieType = 'direct'; // Vimeo sync not supported via API here
-                iframeEl.src = vimeoEmbed;
-                iframeEl.style.display = 'block';
+                currentMovieType = 'direct';
+                embedContainer.innerHTML = `<iframe src="${vimeoEmbed}" style="width:100%; height:100%; border:none;" allowfullscreen allow="autoplay; encrypted-media"></iframe>`;
+                embedContainer.style.display = 'block';
             } else {
                 currentMovieType = 'direct';
                 player.src = url;
