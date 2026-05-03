@@ -8,6 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@400,0..1&display=swap" rel="stylesheet"/>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
@@ -480,6 +481,21 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         const WS_URL = isLocal ? `http://${location.host}` : 'https://themover-3r8d.onrender.com';
         let wsCode = '', wsName = '', userName = '', socket, chatFirst = true;
 
+        // ── Confetti ────────────────────────────────────────────────────────────────
+        function triggerConfetti() {
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100000 };
+            function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) { return clearInterval(interval); }
+                var particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
         // ── Workspace Init ──────────────────────────────────────────────────────────
         window.addEventListener('DOMContentLoaded', () => {
             const p = new URLSearchParams(location.search);
@@ -548,7 +564,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             socket.on('chat_history', msgs => { if (msgs.length) { document.getElementById('chat-messages').innerHTML = ''; msgs.forEach(m => appendMsg(m, false)); } });
             socket.on('chat_message', m => appendMsg(m, true));
             socket.on('members_list', renderMembers);
-            socket.on('user_join', d => systemMsg(d.name + ' joined'));
+            socket.on('user_join', d => {
+                systemMsg(d.name + ' joined');
+                triggerConfetti();
+            });
             socket.on('user_leave', d => systemMsg(d.name + ' left'));
             socket.on('call_peer_joined', onPeerJoined);
             socket.on('call_offer', onCallOffer);
