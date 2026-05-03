@@ -335,38 +335,50 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     #video-grid.whatsapp-layout .video-tile.wapp-big video {
         object-fit: cover;
     }
-    /* The SMALL video floats in bottom-right of the video area */
+    /* The SMALL video floats in bottom-right, above controls */
     #video-grid.whatsapp-layout .video-tile.wapp-small {
         position: absolute;
-        bottom: 12px; right: 12px;
-        width: 90px; height: 130px;
+        bottom: 95px; right: 16px;
+        width: 100px; height: 140px;
         z-index: 10;
-        border: 2px solid rgba(255,255,255,0.35);
-        box-shadow: 0 6px 24px rgba(0,0,0,0.7);
-        border-radius: 14px;
+        border: 2px solid rgba(255,255,255,0.4);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+        border-radius: 12px;
         cursor: pointer;
         transition: transform 0.12s ease;
         overflow: hidden;
     }
     #video-grid.whatsapp-layout .video-tile.wapp-small:active { transform: scale(0.93); }
-    #video-grid.whatsapp-layout .video-tile.wapp-small video { object-fit: cover; }
+    #video-grid.whatsapp-layout .video-tile.wapp-small video { object-fit: cover !important; }
     /* Swap icon on small tile */
     #video-grid.whatsapp-layout .video-tile.wapp-small::after {
         content: '⇄';
         position: absolute; bottom: 4px; right: 6px;
-        font-size: 13px; color: rgba(255,255,255,0.8);
-        text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+        font-size: 16px; color: rgba(255,255,255,0.9);
+        text-shadow: 0 2px 6px rgba(0,0,0,0.9);
         pointer-events: none;
     }
-    /* Mobile call controls - compact row */
+    
+    #meet-call { position: relative; } /* Important for absolute controls */
+
+    /* Mobile call controls - floating pill like WhatsApp */
     #call-controls {
-        flex-shrink: 0;
-        gap: 10px !important;
-        padding: 10px 12px !important;
-        padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+        position: absolute !important;
+        bottom: 24px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: rgba(30, 30, 30, 0.7) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-radius: 40px !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        z-index: 20 !important;
+        width: auto !important;
+        gap: 16px !important;
+        padding: 8px 24px !important;
         justify-content: center !important;
-        overflow-x: auto;
-        scrollbar-width: none;
+        overflow: visible !important;
     }
     #call-controls::-webkit-scrollbar { display: none; }
     #call-controls .ctrl-btn { width: 46px !important; height: 46px !important; font-size: 19px !important; flex-shrink: 0; }
