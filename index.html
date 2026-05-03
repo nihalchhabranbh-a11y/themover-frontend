@@ -591,12 +591,24 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             if (!wsCode) { location.href = '/workspace.html'; return; }
             wsName = localStorage.getItem('ws_name') || wsCode;
             userName = localStorage.getItem('user_name') || '';
+            let userAvatar = localStorage.getItem('user_avatar') || '';
+            
             if (!userName) { userName = prompt('Your display name:') || 'User' + (Math.random() * 1000 | 0); localStorage.setItem('user_name', userName); }
             const nameEl = document.getElementById('ws-name-display'); if (nameEl) nameEl.textContent = wsName;
             const codeEl = document.getElementById('ws-code-display'); if (codeEl) codeEl.textContent = wsCode;
             const avatarEl = document.getElementById('ws-avatar-initial'); if (avatarEl) avatarEl.textContent = wsName.charAt(0).toUpperCase();
             const uNameEl = document.getElementById('user-name-display'); if (uNameEl) uNameEl.textContent = userName;
-            const uAvatarEl = document.getElementById('user-avatar-initial'); if (uAvatarEl) uAvatarEl.textContent = userName.charAt(0).toUpperCase();
+            
+            const uAvatarEl = document.getElementById('user-avatar-initial'); 
+            if (uAvatarEl) {
+                if (userAvatar) {
+                    uAvatarEl.innerHTML = `<img src="${userAvatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                    uAvatarEl.style.background = 'transparent';
+                } else {
+                    uAvatarEl.textContent = userName.charAt(0).toUpperCase();
+                }
+            }
+            
             document.title = wsName + ' · TheMover';
             
             saveCurrentServer();
@@ -655,7 +667,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         function initSocket() {
             socket = io(WS_URL);
             socket.on('connect', () => {
-                socket.emit('join_workspace', { code: wsCode, name: userName });
+                let userAvatar = localStorage.getItem('user_avatar') || '';
+                socket.emit('join_workspace', { code: wsCode, name: userName, avatar: userAvatar });
                 renderVoiceChannels({});  // Show default channels immediately
             });
             socket.on('chat_history', msgs => { if (msgs.length) { document.getElementById('chat-messages').innerHTML = ''; msgs.forEach(m => appendMsg(m, false)); } });
@@ -827,7 +840,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         function sendMsg() {
             const inp = document.getElementById('chat-input'), txt = inp.value.trim();
             if (!txt) return;
-            socket.emit('chat_message', { code: wsCode, name: userName, text: txt });
+            let userAvatar = localStorage.getItem('user_avatar') || '';
+            socket.emit('chat_message', { code: wsCode, name: userName, avatar: userAvatar, text: txt });
             inp.value = '';
         }
         function appendMsg(m, scroll) {
@@ -851,12 +865,17 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             d.textContent = txt; box.appendChild(d);
         }
         function renderMembers(list) {
-            document.getElementById('members-list').innerHTML = list.map(m => `
+            document.getElementById('members-list').innerHTML = list.map(m => {
+                let avatarHtml = m.avatar 
+                    ? `<img src="${m.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`
+                    : m.name.charAt(0).toUpperCase();
+                return `
     <div class="member-item">
-      <div class="member-avatar">${m.name.charAt(0).toUpperCase()}</div>
+      <div class="member-avatar" style="${m.avatar ? 'background:transparent;' : ''}">${avatarHtml}</div>
       <div><div class="member-name">${m.name}</div>${m.name === userName ? '<div class="member-you">You</div>' : ''}</div>
       <div class="online-dot"></div>
-    </div>`).join('');
+    </div>`;
+            }).join('');
         }
 
         // ── Discord Voice Channels ───────────────────────────────────────────────────
