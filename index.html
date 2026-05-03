@@ -261,6 +261,9 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <button class="nav-btn" id="tab-members" onclick="switchTab('members')">
         <span class="icon">group</span> Members
     </button>
+    <button class="nav-btn" id="tab-movie" onclick="switchTab('movie')">
+        <span class="icon">theaters</span> Movie Box
+    </button>
     
     <div class="sidebar-footer">
         <button class="flash-btn" onclick="openFlash()">⚡ Flash Share</button>
@@ -353,6 +356,31 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             <!-- Hidden elements for Canvas Video Pipeline -->
             <video id="raw-video" autoplay playsinline muted style="display:none;"></video>
             <canvas id="filter-canvas" style="display:none;"></canvas>
+        </div>
+    </div>
+    
+    <!-- Movie Box -->
+    <div class="panel" id="panel-movie">
+        <div style="display:flex; flex-direction:column; height:100%; gap:16px;">
+            <div style="display:flex; gap:12px;">
+                <input type="text" id="movie-url" class="dl-input" style="flex:1;" placeholder="Paste a direct video URL (e.g., .mp4)">
+                <button class="dl-btn" style="background:var(--primary);" onclick="loadMovie()">Load Video</button>
+            </div>
+            <div style="flex:1; display:flex; gap:16px; min-height:0;">
+                <div style="flex:1; background:#000; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative;">
+                    <video id="movie-player" controls style="width:100%; height:100%; object-fit:contain; outline:none; display:none;"></video>
+                    <div id="movie-placeholder" style="color:var(--muted); font-size:14px;">No video loaded. Paste a URL or upload a video file to watch together!</div>
+                </div>
+                <!-- Mini Cams Sidebar -->
+                <div id="movie-cams-sidebar" style="width:240px; background:#0a0a1a; border-radius:12px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; overflow:hidden; display:none;">
+                    <div style="padding:12px; background:#111; font-size:12px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+                        Watchers <button id="movie-cam-btn" onclick="toggleMovieCam()" style="background:none;border:none;color:var(--primary);cursor:pointer;" class="icon">videocam_off</button>
+                    </div>
+                    <div id="movie-cams-grid" style="flex:1; padding:8px; display:flex; flex-direction:column; gap:8px; overflow-y:auto;">
+                        <!-- Mini videos will be appended here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -649,7 +677,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         }
 
         // ── Navigation ──────────────────────────────────────────────────────────────
-        const TABS = ['files', 'chat', 'meet', 'members'];
+        const TABS = ['files', 'chat', 'meet', 'members', 'movie'];
         
         function toggleMobileSidebar() {
             document.body.classList.toggle('show-sidebar');
@@ -861,6 +889,43 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             socket.emit('chat_message', { code: wsCode, name: userName, avatar: userAvatar, text: txt });
             inp.value = '';
         }
+        
+        // ── Movie Box ───────────────────────────────────────────────────────────────
+        let movieSyncing = false;
+        
+        window.loadMovie = function(forceUrl) {
+            const url = forceUrl || document.getElementById('movie-url').value.trim();
+            if (!url) return;
+            const player = document.getElementById('movie-player');
+            const placeholder = document.getElementById('movie-placeholder');
+            
+            player.src = url;
+            player.style.display = 'block';
+            placeholder.style.display = 'none';
+            
+            if (!forceUrl) {
+                socket.emit('movie_action', { code: wsCode, action: 'load', url: url });
+                socket.emit('chat_message', { code: wsCode, name: userName, avatar: localStorage.getItem('user_avatar')||'', text: `🍿 Started watching a movie: ${url}` });
+            }
+        };
+        
+        window.toggleMovieCam = function() {
+            if (!inCall) {
+                // Not in a call, so start one!
+                document.getElementById('movie-cams-sidebar').style.display = 'flex';
+                document.getElementById('movie-cam-btn').textContent = 'videocam';
+                joinCall(); // leverages the Meet tab logic!
+            } else {
+                leaveCall();
+                document.getElementById('movie-cams-sidebar').style.display = 'none';
+                document.getElementById('movie-cam-btn').textContent = 'videocam_off';
+            }
+        };
+        
+        const player = document.getElementById('movie-player');
+        player.addEventListener('play', () => { if (!movieSyncing) socket.emit('movie_action', { code: wsCode, action: 'play', time: player.currentTime }); });
+        player.addEventListener('pause', () => { if (!movieSyncing) socket.emit('movie_action', { code: wsCode, action: 'pause', time: player.currentTime }); });
+        player.addEventListener('seeked', () => { if (!movieSyncing) socket.emit('movie_action', { code: wsCode, action: 'seek', time: player.currentTime }); });
         function appendMsg(m, scroll) {
             const box = document.getElementById('chat-messages');
             if (chatFirst) { box.innerHTML = ''; chatFirst = false; }
@@ -1517,8 +1582,12 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             localStream?.getTracks().forEach(t => t.stop()); localStream = null;
             Object.values(peers).forEach(pc => pc.close()); peers = {}; inCall = false;
             document.getElementById('video-grid').innerHTML = '';
+            document.getElementById('movie-cams-grid').innerHTML = '';
             document.getElementById('meet-call').style.display = 'none';
             document.getElementById('meet-lobby').style.display = 'flex';
+            document.getElementById('movie-cams-sidebar').style.display = 'none';
+            document.getElementById('movie-cam-btn').textContent = 'videocam_off';
+            closePip();
         }
         function mkPeer(sid, name) {
             const pc = new RTCPeerConnection(ICE);
@@ -1548,7 +1617,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         let rcActive = false;
         
         function addVideoTile(sid, name, stream, local) {
-            const g = document.getElementById('video-grid');
+            const isMovie = currentTab === 'movie';
+            const gridId = isMovie ? 'movie-cams-grid' : 'video-grid';
+            const g = document.getElementById(gridId);
+            if (isMovie) document.getElementById('movie-cams-sidebar').style.display = 'flex';
             let tile = document.getElementById('vtile-' + sid);
             if (!tile) { 
                 tile = document.createElement('div'); 
@@ -1956,15 +2028,21 @@ function closePip() {
 
 const origSwitchTab = switchTab;
 window.switchTab = function(t) {
-    if (inCall && t !== 'meet') {
-        const grid = document.getElementById('video-grid');
-        document.getElementById('pip-container').appendChild(grid);
-        pip.style.display = 'block';
-    } else if (t === 'meet') {
-        pip.style.display = 'none';
-        document.getElementById('meet-call').insertBefore(document.getElementById('video-grid'), document.getElementById('call-controls'));
-    }
     origSwitchTab(t);
+    const grid = document.getElementById('video-grid');
+    if (inCall) {
+        if (t === 'movie') {
+            pip.style.display = 'none';
+            document.getElementById('movie-cams-grid').appendChild(grid);
+            document.getElementById('movie-cams-sidebar').style.display = 'flex';
+        } else if (t === 'meet') {
+            pip.style.display = 'none';
+            document.getElementById('meet-call').insertBefore(grid, document.getElementById('call-controls'));
+        } else {
+            document.getElementById('pip-container').appendChild(grid);
+            pip.style.display = 'block';
+        }
+    }
 };
 
 
@@ -2054,6 +2132,25 @@ initSocket = function() {
             activeEditorUsers = d.users;
             renderEditorUsers();
         }
+    });
+
+    // Movie Sync
+    socket.on('movie_action', d => {
+        const p = document.getElementById('movie-player');
+        movieSyncing = true;
+        if (d.action === 'load') {
+            document.getElementById('movie-url').value = d.url;
+            loadMovie(d.url);
+        } else if (d.action === 'play') {
+            if (Math.abs(p.currentTime - d.time) > 1) p.currentTime = d.time;
+            p.play().catch(e => console.log('Autoplay blocked', e));
+        } else if (d.action === 'pause') {
+            p.currentTime = d.time;
+            p.pause();
+        } else if (d.action === 'seek') {
+            p.currentTime = d.time;
+        }
+        setTimeout(() => movieSyncing = false, 500);
     });
 };
 
