@@ -301,15 +301,26 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     }
 
     /* ── WhatsApp Style Video Calls ── */
-    #panel-meet { padding: 0 !important; }
-    #meet-call { height: calc(100vh - 56px - 64px) !important; }
-    #video-grid { padding: 0 !important; gap: 2px !important; border-radius: 0; }
+    #panel-meet { padding: 0 !important; display: flex; flex-direction: column; }
+    #meet-lobby { flex: 1; }
+    #meet-call {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        overflow: hidden !important;
+    }
+    /* Only reset padding inside the meet panel's video grid, NOT globally */
+    #panel-meet #video-grid { padding: 0 !important; gap: 0 !important; }
+    
     #video-grid.whatsapp-layout {
         display: block !important;
-        position: relative;
-        height: 100%;
+        position: relative !important;
+        flex: 1 !important;
+        height: 0 !important; /* let flex-grow handle height */
+        min-height: 0 !important;
     }
-    /* The BIG video (remote) fills full screen */
+    /* The BIG video fills the flex area */
     #video-grid.whatsapp-layout .video-tile.wapp-big {
         position: absolute;
         top: 0; left: 0; width: 100%; height: 100%;
@@ -317,33 +328,44 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         z-index: 1;
     }
     #video-grid.whatsapp-layout .video-tile.wapp-big video {
-        object-fit: cover; /* fill screen for big video */
+        object-fit: cover;
     }
-    /* The SMALL video (pip) floats in corner */
+    /* The SMALL video floats in bottom-right of the video area */
     #video-grid.whatsapp-layout .video-tile.wapp-small {
         position: absolute;
-        bottom: 76px; right: 12px; /* above call controls */
-        width: 100px; height: 140px;
+        bottom: 12px; right: 12px;
+        width: 90px; height: 130px;
         z-index: 10;
-        border: 2px solid rgba(255,255,255,0.3);
-        box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+        border: 2px solid rgba(255,255,255,0.35);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.7);
         border-radius: 14px;
         cursor: pointer;
-        transition: transform 0.1s;
+        transition: transform 0.12s ease;
+        overflow: hidden;
     }
-    #video-grid.whatsapp-layout .video-tile.wapp-small:active { transform: scale(0.95); }
+    #video-grid.whatsapp-layout .video-tile.wapp-small:active { transform: scale(0.93); }
     #video-grid.whatsapp-layout .video-tile.wapp-small video { object-fit: cover; }
-    /* Tap-to-swap label */
+    /* Swap icon on small tile */
     #video-grid.whatsapp-layout .video-tile.wapp-small::after {
         content: '⇄';
         position: absolute; bottom: 4px; right: 6px;
-        font-size: 14px; color: rgba(255,255,255,0.7);
-        text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+        font-size: 13px; color: rgba(255,255,255,0.8);
+        text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+        pointer-events: none;
     }
-    /* Mobile call controls compact */
-    #call-controls { gap: 8px !important; padding: 8px 8px !important; overflow-x: auto !important; justify-content: flex-start !important; }
-    #call-controls .ctrl-btn { width: 44px !important; height: 44px !important; font-size: 18px !important; }
-    /* Hide clutter on small screens */
+    /* Mobile call controls - compact row */
+    #call-controls {
+        flex-shrink: 0;
+        gap: 10px !important;
+        padding: 10px 12px !important;
+        padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+        justify-content: center !important;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    #call-controls::-webkit-scrollbar { display: none; }
+    #call-controls .ctrl-btn { width: 46px !important; height: 46px !important; font-size: 19px !important; flex-shrink: 0; }
+    /* Hide clutter buttons on small screens */
     #call-controls #video-filter,
     #call-controls #btn-pencil,
     #call-controls #btn-ar,
