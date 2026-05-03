@@ -104,28 +104,32 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 .dl-btn:hover { background: rgba(255,255,255,0.05); }
 
 /* Chat */
-#chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 20px; }
-.msg { display: flex; gap: 12px; max-width: 80%; flex-direction:column; }
+#panel-chat { display: flex; flex-direction: column; overflow: hidden; }
+#chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px; padding-bottom: 8px; }
+.msg { display: flex; gap: 12px; max-width: 85%; flex-direction:column; }
 .msg.mine { align-self: flex-end; }
-.msg-name { font-size: 12px; color: var(--muted); }
+.msg-name { font-size: 11px; color: var(--muted); padding: 0 4px; }
 .msg.mine .msg-name { text-align:right;}
-.msg-bubble { background: var(--card); padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.5; border: 1px solid var(--border); }
-.msg.mine .msg-bubble { background: var(--primary); border-color: var(--primary); color: white; }
-.chat-input-wrap { margin-top: auto; display: flex; gap: 12px; }
-.chat-input { flex: 1; background: var(--card); border: 1px solid var(--border); padding: 14px 16px; border-radius: 12px; color: var(--text); font-size: 14px; outline: none; }
+.msg-bubble { background: var(--card); padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; border: 1px solid var(--border); }
+.msg.mine .msg-bubble { background: var(--primary); border-color: var(--primary); color: white; border-bottom-right-radius: 4px; }
+.msg:not(.mine) .msg-bubble { border-bottom-left-radius: 4px; }
+.chat-input-wrap { flex-shrink: 0; display: flex; gap: 10px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); }
+.chat-input { flex: 1; background: var(--card); border: 1px solid var(--border); padding: 12px 16px; border-radius: 24px; color: var(--text); font-size: 14px; outline: none; }
 .chat-input:focus { border-color: var(--primary); }
-.send-btn { background: var(--primary); color: white; border: none; width: 48px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; font-family:'Material Symbols Outlined'; }
+.send-btn { background: var(--primary); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; font-family:'Material Symbols Outlined'; flex-shrink: 0; }
 
 /* Meet */
-#meet-lobby { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-.join-call-btn { background: var(--primary); color: #fff; border: none; border-radius: 14px; padding: 14px 32px; font-size: 16px; font-weight: 700; cursor: pointer; }
-#meet-call { flex: 1; display: none; flex-direction: column; }
-#video-grid { flex: 1; display: grid; gap: 8px; padding: 16px; background: #000; overflow: hidden; }
+#meet-lobby { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; text-align: center; }
+.join-call-btn { background: linear-gradient(135deg, var(--primary), #8b5cf6); color: #fff; border: none; border-radius: 50px; padding: 16px 40px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 20px rgba(99,102,241,0.4); }
+#meet-call { flex: 1; display: none; flex-direction: column; overflow: hidden; }
+#video-grid { flex: 1; display: grid; gap: 6px; padding: 8px; background: #000; overflow: hidden; }
 .video-tile { position: relative; background: #111; border-radius: 12px; overflow: hidden; }
-.video-tile video { width: 100%; height: 100%; object-fit: cover; }
-.tile-name { position: absolute; bottom: 8px; left: 8px; font-size: 11px; font-weight: 700; background: rgba(0, 0, 0, .6); padding: 3px 8px; border-radius: 20px; }
-#call-controls { padding: 12px; background: #0a0a1a; display: flex; justify-content: center; gap: 12px; }
-.ctrl-btn { background: rgba(255, 255, 255, .1); border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 20px; cursor: pointer; color: #fff; font-family: 'Material Symbols Outlined'; transition: background .15s; display:flex; align-items:center; justify-content:center;}
+.video-tile video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.tile-name { position: absolute; bottom: 8px; left: 8px; font-size: 11px; font-weight: 700; background: rgba(0, 0, 0, .6); padding: 3px 8px; border-radius: 20px; backdrop-filter: blur(4px); }
+#call-controls { padding: 10px 16px; background: #0a0a1a; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+#call-controls::-webkit-scrollbar { display: none; }
+.ctrl-btn { background: rgba(255, 255, 255, .12); border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 20px; cursor: pointer; color: #fff; font-family: 'Material Symbols Outlined'; transition: background .15s; display:flex; align-items:center; justify-content:center; flex-shrink: 0;}
+.ctrl-btn:active { transform: scale(0.92); }
 .ctrl-btn.danger { background: var(--danger); }
 
 /* PiP */
@@ -246,10 +250,24 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     /* ── Panels take full width with bottom nav padding ── */
     .panel { padding: 12px; padding-bottom: 80px; }
 
-    /* ── Chat layout on mobile ── */
-    .chat-input-area { padding: 10px 12px; flex-wrap: wrap; gap: 8px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
-    .chat-input { width: 100%; border-radius: 10px; }
-    .chat-btn { width: 100%; border-radius: 10px; }
+    /* ── Chat panel on mobile: fixed input at bottom, messages scroll above ── */
+    #panel-chat {
+        padding: 0 !important;
+        height: calc(100vh - 56px - 64px) !important; /* viewport minus header minus bottom nav */
+    }
+    #chat-messages {
+        padding: 12px 12px 8px !important;
+        padding-bottom: 8px !important;
+    }
+    .chat-input-wrap {
+        position: sticky;
+        bottom: 0;
+        padding: 10px 12px !important;
+        padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+        background: rgba(10,10,26,0.98) !important;
+        border-top: 1px solid rgba(255,255,255,0.08) !important;
+        backdrop-filter: blur(12px);
+    }
 
     /* ── Movie Box on mobile: stack vertically, cameras below ── */
     #panel-movie .main-content-row { flex-direction: column !important; }
@@ -283,24 +301,55 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     }
 
     /* ── WhatsApp Style Video Calls ── */
+    #panel-meet { padding: 0 !important; }
+    #meet-call { height: calc(100vh - 56px - 64px) !important; }
+    #video-grid { padding: 0 !important; gap: 2px !important; border-radius: 0; }
     #video-grid.whatsapp-layout {
         display: block !important;
         position: relative;
+        height: 100%;
     }
-    #video-grid.whatsapp-layout .video-tile:not([data-is-local="true"]) {
+    /* The BIG video (remote) fills full screen */
+    #video-grid.whatsapp-layout .video-tile.wapp-big {
         position: absolute;
         top: 0; left: 0; width: 100%; height: 100%;
         border-radius: 0;
         z-index: 1;
     }
-    #video-grid.whatsapp-layout .video-tile[data-is-local="true"] {
-        position: absolute;
-        bottom: 20px; right: 20px;
-        width: 100px; height: 150px;
-        z-index: 10;
-        border: 2px solid rgba(255,255,255,0.2);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    #video-grid.whatsapp-layout .video-tile.wapp-big video {
+        object-fit: cover; /* fill screen for big video */
     }
+    /* The SMALL video (pip) floats in corner */
+    #video-grid.whatsapp-layout .video-tile.wapp-small {
+        position: absolute;
+        bottom: 76px; right: 12px; /* above call controls */
+        width: 100px; height: 140px;
+        z-index: 10;
+        border: 2px solid rgba(255,255,255,0.3);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+        border-radius: 14px;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+    #video-grid.whatsapp-layout .video-tile.wapp-small:active { transform: scale(0.95); }
+    #video-grid.whatsapp-layout .video-tile.wapp-small video { object-fit: cover; }
+    /* Tap-to-swap label */
+    #video-grid.whatsapp-layout .video-tile.wapp-small::after {
+        content: '⇄';
+        position: absolute; bottom: 4px; right: 6px;
+        font-size: 14px; color: rgba(255,255,255,0.7);
+        text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    /* Mobile call controls compact */
+    #call-controls { gap: 8px !important; padding: 8px 8px !important; overflow-x: auto !important; justify-content: flex-start !important; }
+    #call-controls .ctrl-btn { width: 44px !important; height: 44px !important; font-size: 18px !important; }
+    /* Hide clutter on small screens */
+    #call-controls #video-filter,
+    #call-controls #btn-pencil,
+    #call-controls #btn-ar,
+    #call-controls #ar-color,
+    #call-controls button[onclick="clearDrawing()"],
+    #call-controls #btn-host { display: none !important; }
 }
 
 /* ── Bottom Tab Nav (hidden on desktop) ── */
@@ -2133,6 +2182,32 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             alert("Host script downloaded!\n\nTo allow your friend to control your PC, just CLICK the downloaded file in your browser's download bar.\nIt will automatically run and connect to this workspace!");
         }
 
+        // Track which tile is currently "big" in WhatsApp mode
+        let wappBigSid = null; // null = remote is big (default)
+
+        function swapWhatsAppTiles() {
+            const g = document.getElementById('video-grid');
+            const tiles = Array.from(g.children);
+            if (tiles.length !== 2) return;
+            const bigTile = tiles.find(t => t.classList.contains('wapp-big'));
+            const smallTile = tiles.find(t => t.classList.contains('wapp-small'));
+            if (!bigTile || !smallTile) return;
+            bigTile.classList.replace('wapp-big', 'wapp-small');
+            smallTile.classList.replace('wapp-small', 'wapp-big');
+            // Re-attach tap handler to the new small tile
+            applyWhatsAppTapHandler();
+        }
+
+        function applyWhatsAppTapHandler() {
+            const g = document.getElementById('video-grid');
+            g.querySelectorAll('.wapp-small').forEach(t => {
+                t.onclick = swapWhatsAppTiles;
+            });
+            g.querySelectorAll('.wapp-big').forEach(t => {
+                t.onclick = null;
+            });
+        }
+
         function updateGrid() {
             const g = document.getElementById('video-grid'), n = g.children.length;
             g.style.gridTemplateColumns = n <= 1 ? '1fr' : n <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
@@ -2140,8 +2215,22 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             // WhatsApp Style Mobile Layout (1 remote + 1 local)
             if (n === 2 && window.innerWidth <= 768) {
                 g.classList.add('whatsapp-layout');
+                // Assign big/small classes
+                const tiles = Array.from(g.children);
+                const localTile = tiles.find(t => t.getAttribute('data-is-local') === 'true');
+                const remoteTile = tiles.find(t => t.getAttribute('data-is-local') !== 'true');
+                if (localTile && remoteTile) {
+                    // Default: remote is big, local (self) is small
+                    remoteTile.classList.remove('wapp-small'); remoteTile.classList.add('wapp-big');
+                    localTile.classList.remove('wapp-big'); localTile.classList.add('wapp-small');
+                    applyWhatsAppTapHandler();
+                }
             } else {
                 g.classList.remove('whatsapp-layout');
+                g.querySelectorAll('.wapp-big, .wapp-small').forEach(t => {
+                    t.classList.remove('wapp-big', 'wapp-small');
+                    t.onclick = null;
+                });
             }
         }
         function toggleMic() { micOn = !micOn; localStream?.getAudioTracks().forEach(t => t.enabled = micOn); updateCallBtns(); }
