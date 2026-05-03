@@ -302,7 +302,11 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     }
 
     /* ── WhatsApp Style Video Calls ── */
-    #panel-meet { padding: 0 !important; flex-direction: column; }
+    #panel-meet {
+        padding: 0 !important;
+        flex-direction: column;
+        height: calc(100vh - 56px - 64px) !important;
+    }
     #meet-lobby { flex: 1; }
     #meet-call {
         flex: 1 !important;
@@ -2235,19 +2239,21 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             const g = document.getElementById('video-grid'), n = g.children.length;
             g.style.gridTemplateColumns = n <= 1 ? '1fr' : n <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
             
-            // WhatsApp Style Mobile Layout (1 remote + 1 local)
+            // WhatsApp Style Mobile Layout
             if (n === 2 && window.innerWidth <= 768) {
                 g.classList.add('whatsapp-layout');
-                // Assign big/small classes
                 const tiles = Array.from(g.children);
                 const localTile = tiles.find(t => t.getAttribute('data-is-local') === 'true');
                 const remoteTile = tiles.find(t => t.getAttribute('data-is-local') !== 'true');
                 if (localTile && remoteTile) {
-                    // Default: remote is big, local (self) is small
                     remoteTile.classList.remove('wapp-small'); remoteTile.classList.add('wapp-big');
                     localTile.classList.remove('wapp-big'); localTile.classList.add('wapp-small');
                     applyWhatsAppTapHandler();
                 }
+            } else if (n === 1 && window.innerWidth <= 768) {
+                g.classList.add('whatsapp-layout');
+                g.children[0].classList.remove('wapp-small');
+                g.children[0].classList.add('wapp-big');
             } else {
                 g.classList.remove('whatsapp-layout');
                 g.querySelectorAll('.wapp-big, .wapp-small').forEach(t => {
