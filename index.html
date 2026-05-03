@@ -865,7 +865,16 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             d.textContent = txt; box.appendChild(d);
         }
         function renderMembers(list) {
-            document.getElementById('members-list').innerHTML = list.map(m => {
+            const uniqueMembers = [];
+            const seenNames = new Set();
+            for (const m of list) {
+                if (!seenNames.has(m.name)) {
+                    seenNames.add(m.name);
+                    uniqueMembers.push(m);
+                }
+            }
+            
+            document.getElementById('members-list').innerHTML = uniqueMembers.map(m => {
                 let avatarHtml = m.avatar 
                     ? `<img src="${m.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`
                     : m.name.charAt(0).toUpperCase();
