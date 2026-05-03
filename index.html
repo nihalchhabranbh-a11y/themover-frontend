@@ -255,7 +255,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     #panel-movie .main-content-row { flex-direction: column !important; }
     #movie-cams-sidebar {
         width: 100% !important;
-        height: 130px !important;
+        height: 100px !important;
         flex-direction: row !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
@@ -263,10 +263,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     }
     #movie-cams-grid {
         flex-direction: row !important;
-        padding: 6px !important;
+        padding: 4px !important;
         gap: 6px !important;
     }
-    .movie-cam-tile { height: 100% !important; width: 110px !important; flex-shrink: 0 !important; }
+    .movie-cam-tile { height: 100% !important; width: 85px !important; flex-shrink: 0 !important; }
 
     /* ── Larger tap targets ── */
     .nav-btn, .dl-btn, .movie-react-btn, button { min-height: 44px; }
@@ -280,6 +280,26 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         right: -100% !important;
         border-radius: 0 !important;
         border-left: none !important;
+    }
+
+    /* ── WhatsApp Style Video Calls ── */
+    #video-grid.whatsapp-layout {
+        display: block !important;
+        position: relative;
+    }
+    #video-grid.whatsapp-layout .video-tile:not([data-is-local="true"]) {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        border-radius: 0;
+        z-index: 1;
+    }
+    #video-grid.whatsapp-layout .video-tile[data-is-local="true"] {
+        position: absolute;
+        bottom: 20px; right: 20px;
+        width: 100px; height: 150px;
+        z-index: 10;
+        border: 2px solid rgba(255,255,255,0.2);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     }
 }
 
@@ -486,7 +506,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     <div style="padding:10px 12px; background:#111; border-bottom:1px solid rgba(255,255,255,0.06);">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                             <span style="font-size:12px; font-weight:700; letter-spacing:0.5px;">📹 Watchers</span>
-                            <button onclick="toggleMovieMic()" id="movie-mic-btn" title="Mute/Unmute your mic" style="background:rgba(255,255,255,0.1); border:none; border-radius:8px; padding:4px 8px; cursor:pointer; color:var(--text); font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">mic</button>
+                            <div style="display:flex; gap:4px;">
+                                <button onclick="toggleHideSelfMovie()" id="movie-hide-self-btn" title="Hide your camera preview" style="background:rgba(255,255,255,0.1); border:none; border-radius:8px; padding:4px 8px; cursor:pointer; color:var(--text); font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">visibility_off</button>
+                                <button onclick="toggleMovieMic()" id="movie-mic-btn" title="Mute/Unmute your mic" style="background:rgba(255,255,255,0.1); border:none; border-radius:8px; padding:4px 8px; cursor:pointer; color:var(--text); font-family:'Material Symbols Outlined'; font-size:16px; line-height:1;">mic</button>
+                            </div>
                         </div>
                         <!-- Cam size slider -->
                         <div style="display:flex; align-items:center; gap:6px;">
@@ -1242,6 +1265,21 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         
         // ── Movie Cam Controls (zero latency) ─────────────────────────────────
         let movieMicMuted = false;
+        let movieHideSelf = false;
+        
+        window.toggleHideSelfMovie = function() {
+            movieHideSelf = !movieHideSelf;
+            const btn = document.getElementById('movie-hide-self-btn');
+            if (btn) {
+                btn.textContent = movieHideSelf ? 'visibility' : 'visibility_off';
+                btn.style.background = movieHideSelf ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)';
+            }
+            
+            const localTile = document.querySelector('#movie-cams-grid .video-tile[data-is-local="true"]');
+            if (localTile) {
+                localTile.style.display = movieHideSelf ? 'none' : 'block';
+            }
+        };
         
         window.toggleMovieMic = function() {
             movieMicMuted = !movieMicMuted;
@@ -1430,7 +1468,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         voiceStream = await navigator.mediaDevices.getUserMedia(constraints);
                     } catch(e) {
                         // Fallback
-                        voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                        voiceStream = await navigator.mediaDevices.getUserMedia({ 
+                            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, 
+                            video: false 
+                        });
                     }
                 }
                 
@@ -1642,7 +1683,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         async function joinCall() {
             try {
                 // Get raw camera and mic
-                rawStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: true });
+                rawStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } }, 
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                });
                 
                 // Route raw video to hidden video element
                 const rawVid = document.getElementById('raw-video');
@@ -1669,7 +1713,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     scene360.add(drawingGroup3D);
                     
                     const textureLoader = new THREE.TextureLoader();
-                    textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/4/4c/Equirectangular_projection_SW.jpg', function(texture) {
+                    textureLoader.load('https://res.cloudinary.com/dpt4y0hsw/image/upload/v1700000000/themover_banner.jpg', function(texture) {
                         const geometry = new THREE.SphereGeometry(500, 60, 40);
                         geometry.scale(-1, 1, 1);
                         const material = new THREE.MeshBasicMaterial({ map: texture });
@@ -1984,6 +2028,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 tile = document.createElement('div');
                 tile.id = 'vtile-' + sid;
                 tile.style.position = 'relative';
+                if (local) tile.setAttribute('data-is-local', 'true');
                 
                 if (isMovie) {
                     // Compact movie cam tile
@@ -1994,6 +2039,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                         <video id="vid-${sid}" autoplay ${local ? 'muted' : ''} playsinline style="width:100%; height:100%; object-fit:cover; ${local && videoFilter !== '360' ? 'transform:scaleX(-1);' : ''}"></video>
                         <div style="position:absolute; bottom:0; left:0; right:0; padding:4px 8px; background:linear-gradient(transparent,rgba(0,0,0,0.7)); font-size:11px; font-weight:600;">${name}${local ? ' 🎙' : ''}</div>
                     `;
+                    if (local && movieHideSelf) tile.style.display = 'none';
                 } else {
                     // Full-size meet tile
                     tile.className = 'video-tile';
@@ -2090,6 +2136,13 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         function updateGrid() {
             const g = document.getElementById('video-grid'), n = g.children.length;
             g.style.gridTemplateColumns = n <= 1 ? '1fr' : n <= 4 ? '1fr 1fr' : '1fr 1fr 1fr';
+            
+            // WhatsApp Style Mobile Layout (1 remote + 1 local)
+            if (n === 2 && window.innerWidth <= 768) {
+                g.classList.add('whatsapp-layout');
+            } else {
+                g.classList.remove('whatsapp-layout');
+            }
         }
         function toggleMic() { micOn = !micOn; localStream?.getAudioTracks().forEach(t => t.enabled = micOn); updateCallBtns(); }
         function toggleCam() { camOn = !camOn; localStream?.getVideoTracks().forEach(t => t.enabled = camOn); updateCallBtns(); }
