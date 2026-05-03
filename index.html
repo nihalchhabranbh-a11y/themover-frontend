@@ -209,6 +209,27 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
+/* Mobile Responsive */
+.mobile-menu-btn { display: none; background: none; border: none; color: white; cursor: pointer; }
+.mobile-menu-btn .icon { font-size: 24px; }
+
+@media (max-width: 768px) {
+    .mobile-menu-btn { display: block; }
+    
+    #server-sidebar { display: none; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; box-shadow: 4px 0 16px rgba(0,0,0,0.5); }
+    #sidebar { display: none; position: fixed; left: 72px; top: 0; bottom: 0; z-index: 99; width: calc(100vw - 72px); border-right: none; box-shadow: 4px 0 16px rgba(0,0,0,0.5); }
+    
+    body.show-sidebar #server-sidebar { display: flex; }
+    body.show-sidebar #sidebar { display: flex; }
+    
+    .header { padding: 0 16px; }
+    .chat-input-area { padding: 12px; flex-direction: column; }
+    .chat-input { width: 100%; border-radius: 8px; }
+    .chat-btn { width: 100%; }
+    
+    .panel { padding: 16px; }
+}
+
 </style>
 </head>
 <body>
@@ -252,7 +273,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
 <div id="main">
     <div class="header">
-        <div class="breadcrumb" id="header-breadcrumb">Workspace <span>/ Files</span></div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button class="mobile-menu-btn" onclick="toggleMobileSidebar()"><span class="icon">menu</span></button>
+            <div class="breadcrumb" id="header-breadcrumb">Workspace <span>/ Files</span></div>
+        </div>
         <div class="header-actions">
             <button class="btn-outline" id="invite-btn" onclick="copyInvite()">📋 Copy Code</button>
         </div>
@@ -613,10 +637,16 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
         // ── Navigation ──────────────────────────────────────────────────────────────
         const TABS = ['files', 'chat', 'meet', 'members'];
+        
+        function toggleMobileSidebar() {
+            document.body.classList.toggle('show-sidebar');
+        }
+        
         function switchTab(t) {
+            document.body.classList.remove('show-sidebar');
             TABS.forEach(id => {
                 document.getElementById('panel-' + id).classList.toggle('active', id === t);
-                const nb = document.getElementById('nav-' + id); if (nb) nb.classList.toggle('active', id === t);
+                const nb = document.getElementById('tab-' + id); if (nb) nb.classList.toggle('active', id === t);
                 const mb = document.getElementById('mnav-' + id); if (mb) mb.classList.toggle('active', id === t);
             });
         }
