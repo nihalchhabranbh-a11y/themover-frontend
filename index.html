@@ -714,12 +714,14 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
         // ── Navigation ──────────────────────────────────────────────────────────────
         const TABS = ['files', 'chat', 'meet', 'members', 'movie'];
+        let currentTab = 'files'; // Track active tab globally
         
         function toggleMobileSidebar() {
             document.body.classList.toggle('show-sidebar');
         }
         
         function switchTab(t) {
+            currentTab = t; // <-- update the tracked tab
             document.body.classList.remove('show-sidebar');
             TABS.forEach(id => {
                 document.getElementById('panel-' + id).classList.toggle('active', id === t);
