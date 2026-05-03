@@ -104,7 +104,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 .dl-btn:hover { background: rgba(255,255,255,0.05); }
 
 /* Chat */
-#panel-chat { display: flex; flex-direction: column; overflow: hidden; }
+/* NOTE: Do NOT set display:flex here — panel visibility is controlled by .panel/.panel.active */
+#panel-chat { flex-direction: column; overflow: hidden; }
 #chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 12px; padding-bottom: 8px; }
 .msg { display: flex; gap: 12px; max-width: 85%; flex-direction:column; }
 .msg.mine { align-self: flex-end; }
@@ -1784,7 +1785,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                     scene360.add(drawingGroup3D);
                     
                     const textureLoader = new THREE.TextureLoader();
-                    textureLoader.load('https://res.cloudinary.com/dpt4y0hsw/image/upload/v1700000000/themover_banner.jpg', function(texture) {
+                    textureLoader.load('https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=2048&auto=format&fit=crop', function(texture) {
                         const geometry = new THREE.SphereGeometry(500, 60, 40);
                         geometry.scale(-1, 1, 1);
                         const material = new THREE.MeshBasicMaterial({ map: texture });
