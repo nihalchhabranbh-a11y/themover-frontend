@@ -161,6 +161,10 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 .voice-react-bar { display:flex; gap:4px; margin-top:8px; }
 .voice-react-bar button { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:5px 10px; cursor:pointer; font-size:18px; transition:transform 0.15s, background 0.15s; }
 .voice-react-bar button:hover { transform:scale(1.3); background:rgba(255,255,255,0.15); }
+.movie-react-btn { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:5px 10px; cursor:pointer; font-size:20px; transition:transform 0.15s, background 0.15s; color:inherit; }
+.movie-react-btn:hover { transform:scale(1.35); background:rgba(255,255,255,0.15); }
+@keyframes floatMovieEmoji { 0% { opacity:1; transform:translateY(0) scale(1); } 60% { opacity:1; } 100% { opacity:0; transform:translateY(-200px) scale(1.4); } }
+.floating-movie-emoji { position:absolute; bottom:60px; font-size:36px; animation:floatMovieEmoji 2.5s ease-out forwards; pointer-events:none; }
 
 /* Floating emoji animation */
 @keyframes floatEmoji {
@@ -361,31 +365,45 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     
     <!-- Movie Box -->
     <div class="panel" id="panel-movie">
-        <div style="display:flex; flex-direction:column; height:100%; gap:16px;">
-            <div style="display:flex; gap:12px;">
-                <input type="text" id="movie-url" class="dl-input" style="flex:1;" placeholder="Paste a YouTube, Vimeo, or direct video URL (.mp4)" onkeypress="if(event.key==='Enter') loadMovie()">
-                <button class="dl-btn" style="background:var(--primary);" onclick="loadMovie()">▶ Load</button>
+        <div style="display:flex; flex-direction:column; height:100%; gap:12px;">
+            <!-- URL Bar -->
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" id="movie-url" class="dl-input" style="flex:1;" placeholder="Paste a YouTube, Vimeo, or direct .mp4 URL..." onkeypress="if(event.key==='Enter') loadMovie()">
+                <button class="dl-btn" style="background:var(--primary); padding:10px 20px;" onclick="loadMovie()">▶ Load</button>
+                <button onclick="toggleMovieCam()" id="movie-cam-toggle" title="Toggle webcam" style="background:rgba(255,255,255,0.07); border:none; border-radius:10px; padding:10px 14px; cursor:pointer; color:var(--text); font-family:'Material Symbols Outlined'; font-size:20px;">videocam_off</button>
             </div>
-            <div style="flex:1; display:flex; gap:16px; min-height:0;">
-                <div style="flex:1; background:#000; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative;">
-                    <video id="movie-player" controls style="width:100%; height:100%; object-fit:contain; outline:none; display:none;"></video>
-                    <!-- YT/Vimeo embeds go inside this wrapper; the API replaces it internally -->
-                    <div id="movie-embed-container" style="width:100%; height:100%; display:none; position:absolute; inset:0;"></div>
-                    <div id="movie-placeholder" style="color:var(--muted); font-size:14px; text-align:center; padding:24px;">
-                        <div style="font-size:48px; margin-bottom:12px;">🍿</div>
-                        <div style="font-weight:700; font-size:16px; margin-bottom:8px;">Movie Box</div>
-                        <div>Paste a YouTube link, Vimeo link, or a direct .mp4 URL above to watch together!</div>
-                        <div style="margin-top:8px; font-size:12px; opacity:0.5;">Everyone in the workspace stays perfectly in sync.</div>
+            <!-- Main content area -->
+            <div style="flex:1; display:flex; gap:12px; min-height:0;">
+                <!-- Video Player -->
+                <div style="flex:1; background:#000; border-radius:14px; overflow:hidden; display:flex; flex-direction:column; position:relative;">
+                    <video id="movie-player" controls style="flex:1; object-fit:contain; outline:none; display:none; width:100%;"></video>
+                    <!-- YT/Vimeo embeds go inside this wrapper -->
+                    <div id="movie-embed-container" style="flex:1; display:none; position:relative;"></div>
+                    <div id="movie-placeholder" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--muted); text-align:center; padding:32px;">
+                        <div style="font-size:56px; margin-bottom:16px;">🍿</div>
+                        <div style="font-weight:800; font-size:20px; color:var(--text); margin-bottom:8px;">Movie Box</div>
+                        <div style="font-size:14px; line-height:1.6;">Paste a <b>YouTube</b>, <b>Vimeo</b>, or direct <b>.mp4</b> link above<br>and watch together in perfect sync!</div>
+                        <div style="margin-top:16px; font-size:12px; opacity:0.4;">▶ Play • ⏸ Pause • ⏩ Seek — all synced instantly</div>
+                    </div>
+                    <!-- Floating reaction canvas -->
+                    <div id="movie-reactions-overlay" style="position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:10;"></div>
+                    <!-- Reaction bar -->
+                    <div style="padding:10px 16px; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; gap:8px; border-top:1px solid rgba(255,255,255,0.05);">
+                        <span style="font-size:11px; color:rgba(255,255,255,0.4); margin-right:4px;">React:</span>
+                        <button onclick="sendMovieReaction('😂')" class="movie-react-btn">😂</button>
+                        <button onclick="sendMovieReaction('😍')" class="movie-react-btn">😍</button>
+                        <button onclick="sendMovieReaction('😮')" class="movie-react-btn">😮</button>
+                        <button onclick="sendMovieReaction('👏')" class="movie-react-btn">👏</button>
+                        <button onclick="sendMovieReaction('🔥')" class="movie-react-btn">🔥</button>
+                        <button onclick="sendMovieReaction('😢')" class="movie-react-btn">😢</button>
+                        <button onclick="sendMovieReaction('💀')" class="movie-react-btn">💀</button>
+                        <button onclick="sendMovieReaction('❤️')" class="movie-react-btn">❤️</button>
                     </div>
                 </div>
-                <!-- Mini Cams Sidebar -->
-                <div id="movie-cams-sidebar" style="width:240px; background:#0a0a1a; border-radius:12px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; overflow:hidden; display:none;">
-                    <div style="padding:12px; background:#111; font-size:12px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
-                        Watchers <button id="movie-cam-btn" onclick="toggleMovieCam()" style="background:none;border:none;color:var(--primary);cursor:pointer;" class="icon">videocam_off</button>
-                    </div>
-                    <div id="movie-cams-grid" style="flex:1; padding:8px; display:flex; flex-direction:column; gap:8px; overflow-y:auto;">
-                        <!-- Mini videos will be appended here -->
-                    </div>
+                <!-- Watchers Cam Sidebar -->
+                <div id="movie-cams-sidebar" style="width:220px; background:#0a0a1a; border-radius:14px; border:1px solid rgba(255,255,255,0.05); display:none; flex-direction:column; overflow:hidden;">
+                    <div style="padding:10px 14px; background:#111; font-size:12px; font-weight:700; letter-spacing:0.5px; border-bottom:1px solid rgba(255,255,255,0.05);">📹 Watchers</div>
+                    <div id="movie-cams-grid" style="flex:1; padding:8px; display:flex; flex-direction:column; gap:8px; overflow-y:auto;"></div>
                 </div>
             </div>
         </div>
@@ -1006,17 +1024,35 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         };
         
         window.toggleMovieCam = function() {
+            const btn = document.getElementById('movie-cam-toggle');
             if (!inCall) {
-                // Not in a call, so start one!
                 document.getElementById('movie-cams-sidebar').style.display = 'flex';
-                document.getElementById('movie-cam-btn').textContent = 'videocam';
-                joinCall(); // leverages the Meet tab logic!
+                if (btn) btn.textContent = 'videocam';
+                joinCall();
             } else {
                 leaveCall();
                 document.getElementById('movie-cams-sidebar').style.display = 'none';
-                document.getElementById('movie-cam-btn').textContent = 'videocam_off';
+                if (btn) btn.textContent = 'videocam_off';
             }
         };
+        
+        window.sendMovieReaction = function(emoji) {
+            socket.emit('movie_reaction', { code: wsCode, emoji, name: userName });
+            showMovieReaction(emoji, userName); // show locally immediately
+        };
+        
+        function showMovieReaction(emoji, name) {
+            const overlay = document.getElementById('movie-reactions-overlay');
+            if (!overlay) return;
+            const el = document.createElement('div');
+            el.className = 'floating-movie-emoji';
+            el.textContent = emoji;
+            // Random horizontal position
+            el.style.left = (10 + Math.random() * 80) + '%';
+            overlay.appendChild(el);
+            // Remove after animation
+            setTimeout(() => el.remove(), 2600);
+        }
         
         const player = document.getElementById('movie-player');
         player.addEventListener('play', () => { if (!movieSyncing) socket.emit('movie_action', { code: wsCode, action: 'play', time: player.currentTime }); });
@@ -2261,6 +2297,11 @@ initSocket = function() {
             }
         }
         setTimeout(() => movieSyncing = false, 500);
+    });
+
+    // Movie Reactions
+    socket.on('movie_reaction', d => {
+        showMovieReaction(d.emoji, d.name);
     });
 };
 
