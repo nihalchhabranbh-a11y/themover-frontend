@@ -463,6 +463,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
                 <span class="icon" style="font-size:16px; color:var(--primary);">edit_document</span>
                 <span id="editor-filename">filename.txt</span>
                 <span id="editor-sync-status" style="font-size:10px; color:var(--success); margin-left:8px;">Synced</span>
+                <div id="editor-active-users" style="display:flex; gap:4px; margin-left:12px;"></div>
             </div>
             <div style="display:flex; gap:8px;">
                 <button class="dl-btn" style="background:var(--primary);" onclick="saveEditorFile()">Save to Workspace</button>
@@ -776,11 +777,17 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
         // ── Collaborative Editor ───────────────────────────────────────────────────
         let activeEditorPid = null;
+        let activeEditorUsers = {}; // sid -> {name, avatar}
+        
         async function openEditor(pid, url, filename) {
             activeEditorPid = pid;
             document.getElementById('editor-filename').textContent = filename;
             document.getElementById('editorModal').style.display = 'flex';
             document.getElementById('shared-editor').value = 'Loading...';
+            activeEditorUsers = {};
+            renderEditorUsers();
+            
+            socket.emit('join_edit', { code: wsCode, public_id: pid, name: userName, avatar: localStorage.getItem('user_avatar') || '' });
             
             try {
                 const res = await fetch(url);
@@ -791,8 +798,18 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
             }
         }
         function closeEditor() {
+            if (activeEditorPid) {
+                socket.emit('leave_edit', { code: wsCode, public_id: activeEditorPid });
+            }
             document.getElementById('editorModal').style.display = 'none';
             activeEditorPid = null;
+        }
+        function renderEditorUsers() {
+            const container = document.getElementById('editor-active-users');
+            container.innerHTML = Object.values(activeEditorUsers).map(u => {
+                return u.avatar ? `<img src="${u.avatar}" title="${u.name} is editing" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid var(--primary);">`
+                                : `<div title="${u.name} is editing" style="width:20px;height:20px;border-radius:50%;background:var(--primary);color:white;font-size:10px;display:flex;align-items:center;justify-content:center;">${u.name.charAt(0).toUpperCase()}</div>`;
+            }).join('');
         }
         async function saveEditorFile() {
             if (!activeEditorPid) return;
@@ -2029,6 +2046,13 @@ initSocket = function() {
             document.getElementById('editor-sync-status').textContent = 'Live Syncing...';
             clearTimeout(window._syncTimer);
             window._syncTimer = setTimeout(() => { document.getElementById('editor-sync-status').textContent = 'Synced'; }, 500);
+        }
+    });
+
+    socket.on('editor_users', d => {
+        if (activeEditorPid === d.public_id) {
+            activeEditorUsers = d.users;
+            renderEditorUsers();
         }
     });
 };
