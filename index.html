@@ -363,13 +363,19 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
     <div class="panel" id="panel-movie">
         <div style="display:flex; flex-direction:column; height:100%; gap:16px;">
             <div style="display:flex; gap:12px;">
-                <input type="text" id="movie-url" class="dl-input" style="flex:1;" placeholder="Paste a direct video URL (e.g., .mp4)">
-                <button class="dl-btn" style="background:var(--primary);" onclick="loadMovie()">Load Video</button>
+                <input type="text" id="movie-url" class="dl-input" style="flex:1;" placeholder="Paste a YouTube, Vimeo, or direct video URL (.mp4)" onkeypress="if(event.key==='Enter') loadMovie()">
+                <button class="dl-btn" style="background:var(--primary);" onclick="loadMovie()">▶ Load</button>
             </div>
             <div style="flex:1; display:flex; gap:16px; min-height:0;">
                 <div style="flex:1; background:#000; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative;">
                     <video id="movie-player" controls style="width:100%; height:100%; object-fit:contain; outline:none; display:none;"></video>
-                    <div id="movie-placeholder" style="color:var(--muted); font-size:14px;">No video loaded. Paste a URL or upload a video file to watch together!</div>
+                    <iframe id="movie-iframe" style="width:100%; height:100%; border:none; display:none;" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                    <div id="movie-placeholder" style="color:var(--muted); font-size:14px; text-align:center; padding:24px;">
+                        <div style="font-size:48px; margin-bottom:12px;">🍿</div>
+                        <div style="font-weight:700; font-size:16px; margin-bottom:8px;">Movie Box</div>
+                        <div>Paste a YouTube link, Vimeo link, or a direct .mp4 URL above to watch together!</div>
+                        <div style="margin-top:8px; font-size:12px; opacity:0.5;">Everyone in the workspace stays perfectly in sync.</div>
+                    </div>
                 </div>
                 <!-- Mini Cams Sidebar -->
                 <div id="movie-cams-sidebar" style="width:240px; background:#0a0a1a; border-radius:12px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; overflow:hidden; display:none;">
@@ -893,19 +899,56 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
         // ── Movie Box ───────────────────────────────────────────────────────────────
         let movieSyncing = false;
         
+        function getYouTubeEmbedUrl(url) {
+            // Handles youtu.be/ID, youtube.com/watch?v=ID, youtube.com/shorts/ID
+            const patterns = [
+                /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+                /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+                /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+                /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+            ];
+            for (const p of patterns) {
+                const m = url.match(p);
+                if (m) return `https://www.youtube.com/embed/${m[1]}?autoplay=1&enablejsapi=1`;
+            }
+            return null;
+        }
+        
+        function getVimeoEmbedUrl(url) {
+            const m = url.match(/vimeo\.com\/(\d+)/);
+            return m ? `https://player.vimeo.com/video/${m[1]}?autoplay=1` : null;
+        }
+        
         window.loadMovie = function(forceUrl) {
             const url = forceUrl || document.getElementById('movie-url').value.trim();
             if (!url) return;
             const player = document.getElementById('movie-player');
+            const iframe = document.getElementById('movie-iframe');
             const placeholder = document.getElementById('movie-placeholder');
             
-            player.src = url;
-            player.style.display = 'block';
+            // Hide both first
+            player.style.display = 'none';
+            iframe.style.display = 'none';
             placeholder.style.display = 'none';
+            
+            const ytEmbed = getYouTubeEmbedUrl(url);
+            const vimeoEmbed = getVimeoEmbedUrl(url);
+            
+            if (ytEmbed) {
+                iframe.src = ytEmbed;
+                iframe.style.display = 'block';
+            } else if (vimeoEmbed) {
+                iframe.src = vimeoEmbed;
+                iframe.style.display = 'block';
+            } else {
+                // Direct video file (.mp4, .webm, etc.)
+                player.src = url;
+                player.style.display = 'block';
+            }
             
             if (!forceUrl) {
                 socket.emit('movie_action', { code: wsCode, action: 'load', url: url });
-                socket.emit('chat_message', { code: wsCode, name: userName, avatar: localStorage.getItem('user_avatar')||'', text: `🍿 Started watching a movie: ${url}` });
+                socket.emit('chat_message', { code: wsCode, name: userName, avatar: localStorage.getItem('user_avatar')||'', text: `🍿 Started watching: ${url}` });
             }
         };
         
