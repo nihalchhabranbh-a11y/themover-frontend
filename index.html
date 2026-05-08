@@ -1806,21 +1806,45 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var
 
         async function joinCall() {
             try {
-                // Get raw camera and mic
+                // Get raw camera and mic - Ultra HD 4K @ 60fps
                 rawStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: 640 }, height: { ideal: 480 } }, 
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                    video: { 
+                        width: { ideal: 3840, min: 1920 }, 
+                        height: { ideal: 2160, min: 1080 },
+                        frameRate: { ideal: 60, min: 30, max: 120 },
+                        facingMode: 'user',
+                        resizeMode: 'none' // Don't crop - preserve full resolution
+                    }, 
+                    audio: { 
+                        echoCancellation: true, 
+                        noiseSuppression: true, 
+                        autoGainControl: true,
+                        sampleRate: 48000,
+                        channelCount: 2
+                    } 
+                }).catch(() => {
+                    // Fallback to 1080p 60fps if 4K not supported
+                    return navigator.mediaDevices.getUserMedia({
+                        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000 }
+                    });
                 });
+                
+                // Log actual resolution obtained
+                const track = rawStream.getVideoTracks()[0];
+                const settings = track.getSettings();
+                console.log(`📹 Camera: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
                 
                 // Route raw video to hidden video element
                 const rawVid = document.getElementById('raw-video');
                 rawVid.srcObject = new MediaStream([rawStream.getVideoTracks()[0]]);
                 rawVid.play();
                 
-                // Setup Canvas stream
+                // Setup Canvas stream - match actual camera resolution
                 const canvas = document.getElementById('filter-canvas');
                 const ctx = canvas.getContext('2d');
-                canvas.width = 640; canvas.height = 480;
+                canvas.width = settings.width || 1920; 
+                canvas.height = settings.height || 1080;
                 
                 // Setup 360 Environment
                 let scene360, camera360, renderer360;
